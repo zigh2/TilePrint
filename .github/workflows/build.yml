@@ -1,0 +1,90 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+      - "incoming/**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: sudo apt-get update && sudo apt-get install -y libreoffice-calc libegl1 libxkbcommon0
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+        env: { QT_QPA_PLATFORM: offscreen }
+
+  package:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, name: windows, sep: ";" }
+          - { os: macos-latest,   name: macos,   sep: ":" }
+          - { os: ubuntu-22.04,   name: linux,   sep: ":" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements-dev.txt
+      - name: Build (PyInstaller, one-folder)
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --windowed --name TilePrint \
+            --paths src \
+            --icon src/tileprint/assets/icon.${{ matrix.name == 'windows' && 'ico' || 'png' }} \
+            --add-data "src/tileprint/assets${{ matrix.sep }}tileprint/assets" \
+            --collect-all pypdfium2 --collect-all pypdfium2_raw --collect-all pikepdf \
+            run_tileprint.py
+
+      - name: Package (Windows portable zip)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/TilePrint -DestinationPath TilePrint-windows-portable.zip
+
+      - name: Package (macOS dmg)
+        if: matrix.name == 'macos'
+        run: |
+          hdiutil create -volname TilePrint -srcfolder dist/TilePrint.app -ov -format UDZO TilePrint-macos.dmg
+
+      - name: Package (Linux AppImage)
+        if: matrix.name == 'linux'
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp -r dist/TilePrint/* AppDir/usr/bin/
+          cp src/tileprint/assets/icon.png AppDir/tileprint.png
+          printf '[Desktop Entry]\nType=Application\nName=TilePrint\nExec=TilePrint\nIcon=tileprint\nCategories=Graphics;Office;\n' > AppDir/tileprint.desktop
+          printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexec "$HERE/usr/bin/TilePrint" "$@"\n' > AppDir/AppRun
+          chmod +x AppDir/AppRun
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir TilePrint-linux-x86_64.AppImage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TilePrint-${{ matrix.name }}
+          path: |
+            TilePrint-windows-portable.zip
+            TilePrint-macos.dmg
+            TilePrint-linux-x86_64.AppImage
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-22.04
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with: { files: artifacts/* }

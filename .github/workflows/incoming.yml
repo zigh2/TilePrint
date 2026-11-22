@@ -1,0 +1,275 @@
+name: Incoming → Build → Release
+
+# Drop a project .zip into `incoming/` and push to `main`.
+# The workflow replaces the whole project with the zip contents, tests and builds it on
+# Windows / macOS / Linux, and only when everything succeeds commits the new state and
+# publishes a GitHub Release for the version in the zip.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "incoming/*.zip"
+  workflow_dispatch:
+
+concurrency:
+  group: incoming
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.zip.outputs.found }}
+      version: ${{ steps.replace.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Locate the newest zip in incoming/
+        id: zip
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zips=(incoming/*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "No zip in incoming/ - nothing to do."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          newest=$(printf '%s\n' "${zips[@]}" | sort -V | tail -n1)
+          echo "Using $newest"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "path=$newest" >> "$GITHUB_OUTPUT"
+
+      - name: Replace the project with the zip contents
+        if: steps.zip.outputs.found == 'true'
+        id: replace
+        run: |
+          set -euo pipefail
+          ZIP="${{ steps.zip.outputs.path }}"
+          mkdir -p "$RUNNER_TEMP/out"
+          cp "$ZIP" "$RUNNER_TEMP/out/source.zip"
+          TMP="$(mktemp -d)"
+          unzip -q "$ZIP" -d "$TMP"
+
+          # If the zip has a single top-level folder, use its contents.
+          shopt -s dotglob nullglob
+          entries=("$TMP"/*)
+          if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then SRC="${entries[0]}"; else SRC="$TMP"; fi
+          shopt -u dotglob nullglob
+
+          # Version: VERSION file first, then the zip file name (e.g. tileprint-0.2.0.zip).
+          VERSION=""
+          if [ -f "$SRC/VERSION" ]; then VERSION="$(tr -d ' \r\n' < "$SRC/VERSION")"; fi
+          if [ -z "$VERSION" ]; then
+            VERSION="$(basename "$ZIP" .zip | grep -oE '[0-9]+(\.[0-9]+)+' | tail -n1 || true)"
+          fi
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+(\.[0-9]+)*$'; then
+            echo "::error::Could not determine a valid version (put it in a VERSION file or in the zip name)."
+            exit 1
+          fi
+          # Every drop must produce a NEW release: if the tag exists, bump the last number
+          # (keeping its width: 0.02 -> 0.03, 1.9 -> 1.10).
+          bump() {
+            local v="$1" last head
+            if [[ "$v" == *.* ]]; then last="${v##*.}"; head="${v%.*}."; else last="$v"; head=""; fi
+            printf '%s%0*d' "$head" "${#last}" $((10#$last + 1))
+          }
+          git fetch --tags --quiet origin || true
+          while git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null \
+             || git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; do
+            NEW="$(bump "$VERSION")"
+            echo "Tag v$VERSION already exists -> using $NEW"
+            VERSION="$NEW"
+          done
+          echo "$VERSION" > "$SRC/VERSION"
+          # keep the version inside the code in sync (only when the files exist)
+          if [ -f "$SRC/pyproject.toml" ]; then
+            sed -i -E "0,/^version = \".*\"/s//version = \"$VERSION\"/" "$SRC/pyproject.toml"
+          fi
+          if [ -f "$SRC/src/tileprint/__init__.py" ]; then
+            sed -i -E "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" "$SRC/src/tileprint/__init__.py"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+          # Wipe the old project (keep .git, incoming/ and the workflows - see incoming/README.md).
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name incoming ! -name .github -exec rm -rf {} +
+          if [ -d .github ]; then
+            find .github -mindepth 1 -maxdepth 1 ! -name workflows -exec rm -rf {} +
+          fi
+          rsync -a --exclude='.git/' --exclude='/incoming/' --exclude='/.github/workflows/' "$SRC"/ ./
+          rm -f incoming/*.zip
+          # the new project state travels to the next jobs as one archive
+          tar --exclude=.git -czf "$RUNNER_TEMP/out/project.tgz" .
+
+      - uses: actions/upload-artifact@v4
+        if: steps.zip.outputs.found == 'true'
+        with:
+          name: project
+          path: ${{ runner.temp }}/out/project.tgz
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: steps.zip.outputs.found == 'true'
+        with:
+          name: source-zip
+          path: ${{ runner.temp }}/out/source.zip
+          if-no-files-found: error
+
+  test:
+    needs: prepare
+    if: needs.prepare.outputs.found == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: project
+          path: _project
+      - run: tar -xzf _project/project.tgz && rm -rf _project
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+  package:
+    needs: [prepare, test]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: windows-latest, name: windows, sep: ";" }
+          - { os: macos-latest,   name: macos,   sep: ":" }
+          - { os: ubuntu-22.04,   name: linux,   sep: ":" }
+    runs-on: ${{ matrix.os }}
+    env:
+      V: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: project
+          path: _project
+      - shell: bash
+        run: tar -xzf _project/project.tgz && rm -rf _project
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - name: Build (PyInstaller, one-folder)
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --windowed --name TilePrint \
+            --paths src \
+            --icon src/tileprint/assets/icon.${{ matrix.name == 'windows' && 'ico' || 'png' }} \
+            --add-data "src/tileprint/assets${{ matrix.sep }}tileprint/assets" \
+            --collect-all pypdfium2 --collect-all pypdfium2_raw --collect-all pikepdf \
+            run_tileprint.py
+
+      - name: Package (Windows portable zip)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/TilePrint -DestinationPath "TilePrint-v$env:V-windows-portable.zip"
+
+      - name: Package (macOS dmg)
+        if: matrix.name == 'macos'
+        run: hdiutil create -volname TilePrint -srcfolder dist/TilePrint.app -ov -format UDZO "TilePrint-v$V-macos.dmg"
+
+      - name: Package (Linux AppImage)
+        if: matrix.name == 'linux'
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp -r dist/TilePrint/* AppDir/usr/bin/
+          cp src/tileprint/assets/icon.png AppDir/tileprint.png
+          printf '[Desktop Entry]\nType=Application\nName=TilePrint\nExec=TilePrint\nIcon=tileprint\nCategories=Graphics;Office;\n' > AppDir/tileprint.desktop
+          printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexec "$HERE/usr/bin/TilePrint" "$@"\n' > AppDir/AppRun
+          chmod +x AppDir/AppRun
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir "TilePrint-v$V-linux-x86_64.AppImage"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TilePrint-${{ matrix.name }}
+          path: |
+            TilePrint-v*-windows-portable.zip
+            TilePrint-v*-macos.dmg
+            TilePrint-v*-linux-x86_64.AppImage
+          if-no-files-found: error
+
+  finalize:
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    env:
+      V: ${{ needs.prepare.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: project
+          path: _project
+
+      - name: Apply the new project state
+        run: |
+          set -euo pipefail
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name _project -exec rm -rf {} +
+          tar -xzf _project/project.tgz
+          rm -rf _project
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "release: v$V (from incoming/)"
+            git pull --rebase origin "${GITHUB_REF_NAME}" || true
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: TilePrint-*
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-zip
+          path: srczip
+
+      - name: Create GitHub Release
+        run: |
+          set -euo pipefail
+          cp srczip/source.zip "dist/TilePrint-v$V-source.zip"
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          TAG="v$V"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            TAG="v$V-build${{ github.run_number }}"
+          fi
+          # Release notes: the matching CHANGELOG section if present.
+          awk -v v="$V" '
+            $0 ~ "^## \\[" v "\\]" {f=1; next}
+            f && /^## \[/ {exit}
+            f {print}
+          ' CHANGELOG.md > notes.md 2>/dev/null || true
+          if [ ! -s notes.md ]; then echo "Automated release for version $V." > notes.md; fi
+          gh release create "$TAG" dist/* \
+            --title "TilePrint v$V" \
+            --notes-file notes.md \
+            --target "$(git rev-parse HEAD)"
