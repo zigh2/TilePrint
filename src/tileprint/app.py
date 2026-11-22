@@ -61,7 +61,7 @@ i18n.register({
     "seq": {"en": "Sequential (1, 2, 3)", "ar": "تسلسلي (1، 2، 3)"},
     "rc": {"en": "Row/column (A1, B2)", "ar": "صف/عمود (A1, B2)"},
     "crop_marks": {"en": "Crop marks", "ar": "علامات القص"},
-    "guides": {"en": "Overlap guides + registration crosses", "ar": "خطوط التداخل وعلامات التسجيل"},
+    "guides": {"en": "Overlap ticks in the margin", "ar": "علامات التداخل في الهامش فقط"},
     "footer": {"en": "Footer (name, date, scale)", "ar": "تذييل (الاسم والتاريخ والمقياس)"},
     "scale_bar": {"en": "Real-size scale ruler", "ar": "مسطرة المقياس الفعلي"},
     "smart_cut": {"en": "Smart cut (avoid slicing content)", "ar": "قص ذكي (تجنب قطع المحتوى)"},
@@ -714,8 +714,80 @@ class MainWindow(QMainWindow):
                 src, path, job.poster_w, job.poster_h, job.placement))
 
 
+def selftest() -> int:
+    """Headless end-to-end check used by CI on the *frozen* app (and by developers).
+
+    Exercises every bundled piece: reportlab + fonts + Arabic shaping, pypdfium2, Pillow,
+    pikepdf (+ lxml), openpyxl import, and a real Qt window (so missing Qt platform
+    libraries or pruned plugins are caught). Exit code 0 = OK. Log: $TILEPRINT_SELFTEST_LOG.
+    """
+    import traceback
+    log_path = os.environ.get("TILEPRINT_SELFTEST_LOG")
+    lines: list[str] = []
+
+    def say(msg: str) -> None:
+        lines.append(msg)
+        try:
+            print(msg, flush=True)
+        except Exception:      # windowed exe has no stdout
+            pass
+
+    code = 0
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas as rl
+
+        from .overlay import OverlayOptions
+        from .paper import PT_PER_MM
+        from .project import RasterCache, build_job
+
+        tmp = tempfile.mkdtemp(prefix="tileprint_selftest_")
+        pdf = os.path.join(tmp, "test.pdf")
+        c = rl.Canvas(pdf, pagesize=A4)
+        c.setFont("Helvetica-Bold", 30)
+        c.drawString(40, 760, "TilePrint self-test")
+        c.circle(300, 400, 120, fill=1)
+        c.save()
+        say("1 source PDF created")
+        src = S.load_source(pdf)
+        s = Settings(poster_preset="A1", smart_cut=True, skip_blank=True, numbering="rc",
+                     footer_text="اختبار — selftest", language="ar")
+        job = build_job(src, s, RasterCache())
+        n = job.layout.rows * job.layout.cols
+        say(f"2 layout built: {job.layout.rows}x{job.layout.cols}, skipped {len(job.skip)}")
+        out_t, out_f = os.path.join(tmp, "tiles.pdf"), os.path.join(tmp, "full.pdf")
+        pages = X.export_tiled(src, out_t, job.layout, job.placement, job.overlay, job.skip)
+        X.export_fullsize(src, out_f, job.poster_w, job.poster_h, job.placement)
+        say(f"3 PDFs written ({pages} sheets)")
+        doc = pdfium.PdfDocument(out_t)
+        assert len(doc) == pages > 0 and n >= pages
+        doc[0].render(scale=0.5).to_pil().getbbox()
+        doc.close()
+        say("4 output re-opened and rendered")
+        import openpyxl  # noqa: F401
+        from openpyxl.worksheet.properties import PageSetupProperties  # noqa: F401
+        say("5 spreadsheet support importable")
+        app = QApplication.instance() or QApplication(sys.argv[:1])
+        win = MainWindow("en")
+        assert win.open_file(pdf)
+        win.refresh()
+        img = win.grab()
+        assert not img.isNull() and img.width() > 100
+        say(f"6 Qt window rendered ({QApplication.platformName()})")
+        say("SELFTEST OK")
+    except Exception:
+        say("SELFTEST FAILED\n" + traceback.format_exc())
+        code = 1
+    if log_path:
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    return code
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv if argv is None else argv)
+    if "--selftest" in argv:
+        return selftest()
     app = QApplication(argv)
     for fn in ("NotoSans-Regular.ttf", "NotoSans-Bold.ttf", "NotoSansArabic-Regular.ttf",
                "NotoSansArabic-Bold.ttf"):

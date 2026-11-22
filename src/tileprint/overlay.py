@@ -17,7 +17,7 @@ from .textutil import draw_text, fit_text, register_fonts, text_width
 class OverlayOptions:
     numbering: str = "seq"            # 'seq' | 'rc'
     crop_marks: bool = True
-    overlap_guides: bool = True       # dashed lines + crosses showing where neighbours sit
+    overlap_guides: bool = True       # margin ticks showing where neighbouring sheets start
     footer: bool = True
     scale_bar: bool = True
     imperial_bar: bool = False        # 2 in bar instead of 5 cm
@@ -83,35 +83,31 @@ def draw_page_overlay(c: canvas.Canvas, layout: TileLayout, page: PlannedPage,
             c.line(x0 - gap, y, x0 - gap - ln, y)
             c.line(x1 + gap, y, x1 + gap + ln, y)
 
-    # ---- overlap guides + junction crosses ---------------------------------
-    if opt.overlap_guides:
+    # ---- overlap marks: short ticks in the margins only (the content area stays clean) --
+    # A tick shows where the neighbouring sheet's frame edge falls, so sheets can be aligned
+    # when gluing: line the neighbour's frame edge up with the tick on both ends.
+    if opt.overlap_guides and m >= 3 * PT_PER_MM:
         ov = _actual_overlaps(layout, page.tile.row, page.tile.col)
-        c.setStrokeGray(0.45)
-        c.setLineWidth(0.3)
-        c.setDash(3, 2)
-        pos = {}
+        gap, ln = 1.0 * PT_PER_MM, min(m - 1.0 * PT_PER_MM, 4 * PT_PER_MM) - 1.0 * PT_PER_MM
+        ln = max(ln, 1.5 * PT_PER_MM)
+        c.setStrokeGray(0.35)
+        c.setLineWidth(0.5)
+        xs, ys = [], []
         if "left" in page.neighbors and "left" in ov:
-            pos["left"] = x0 + ov["left"]
-            c.line(pos["left"], y0, pos["left"], y1)
+            xs.append(x0 + ov["left"])
         if "right" in page.neighbors and "right" in ov:
-            pos["right"] = x1 - ov["right"]
-            c.line(pos["right"], y0, pos["right"], y1)
+            xs.append(x1 - ov["right"])
         if "up" in page.neighbors and "up" in ov:
-            pos["up"] = y1 - ov["up"]
-            c.line(x0, pos["up"], x1, pos["up"])
+            ys.append(y1 - ov["up"])
         if "down" in page.neighbors and "down" in ov:
-            pos["down"] = y0 + ov["down"]
-            c.line(x0, pos["down"], x1, pos["down"])
-        c.setDash()
+            ys.append(y0 + ov["down"])
+        for x in xs:                                   # below the frame
+            c.line(x, y0 - gap, x, y0 - gap - ln)
+        for y in ys:                                   # left and right of the frame
+            c.line(x0 - gap, y, x0 - gap - ln, y)
+            c.line(x1 + gap, y, x1 + gap + ln, y)
         c.setStrokeGray(black)
         c.setLineWidth(0.4)
-        arm = 2.5 * PT_PER_MM
-        for hx in ("left", "right"):
-            for hy in ("up", "down"):
-                if hx in pos and hy in pos:
-                    cx_, cy_ = pos[hx], pos[hy]
-                    c.line(cx_ - arm, cy_, cx_ + arm, cy_)
-                    c.line(cx_, cy_ - arm, cx_, cy_ + arm)
 
     # ---- header: neighbour arrows + current page ---------------------------
     if hdr > 0:

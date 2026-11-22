@@ -12,7 +12,7 @@ Windows · macOS · Linux — Arabic and English UI (RTL supported).
 | Final size | ISO A0–A8, B0–B8, US/ARCH presets, or custom width × height in mm / cm / in; keep-proportions lock |
 | Placement | Fit / Fill / Stretch; drag the content in the preview |
 | Tiling | Printer margin, overlap, automatic portrait/landscape (fewest sheets), **smart cut** (moves sheet edges onto empty space), **skip blank sheets** |
-| Sheet furniture | Thin frame, neighbour arrows ◄ ► ▲ ▼ with page numbers (omitted where no neighbour), sequential (1, 2, 3) or row/column (A1, B2) numbering, crop marks, dashed overlap guides + registration crosses, footer (name · page · date · scale), real-size scale ruler (5 cm / 2 in) |
+| Sheet furniture | Thin frame, neighbour arrows ◄ ► ▲ ▼ with page numbers (omitted where no neighbour), sequential (1, 2, 3) or row/column (A1, B2) numbering, crop marks, overlap ticks in the margin (nothing is drawn inside the content area), footer (name · page · date · scale), real-size scale ruler (5 cm / 2 in) |
 | Output | Tiled PDF, and a single full-size PDF (for plotters / print shops) |
 | Printing aids | "Duplex printer" option inserts a blank back after every sheet so tiles never share a sheet |
 | Preview | Poster with tile grid and numbers, overlap strips, skipped sheets dimmed; double-click a sheet for an exact preview of the printed page |
@@ -46,7 +46,7 @@ Update the whole project from GitHub without touching git locally:
    replaces the whole project with its contents (`incoming/` and `.github/workflows/` are kept).
 3. It runs the tests and builds on Windows, macOS and Linux with PyInstaller.
 4. Only if everything succeeds it commits the new project state, deletes the zip, and publishes a
-   GitHub Release `vX.Y.Z` with `TilePrint-vX.Y.Z-windows-portable.zip`, `TilePrint-vX.Y.Z-macos.dmg`,
+   GitHub Release `vX.Y.Z` with `TilePrint-vX.Y.Z-windows-portable.zip` (and a smaller `.7z`), `TilePrint-vX.Y.Z-macos.dmg`,
    `TilePrint-vX.Y.Z-linux-x86_64.AppImage`, the source zip and `SHA256SUMS.txt`.
 
 The version comes from the `VERSION` file in the zip (fallback: the number in the zip name). If that tag already
@@ -60,6 +60,15 @@ pushes that only touch `incoming/`), and publishes a release when you push a `v*
 * **macOS:** the app is not code-signed (needs a paid Apple Developer account). On first launch use right-click → Open.
 * **Windows:** SmartScreen may warn for an unsigned executable.
 
+## Keeping the download small
+
+PyInstaller's PySide6 hook copies far more Qt than a widgets app needs (QML/Quick, OpenGL, Pdf, Network,
+translations, the 20 MB software OpenGL driver ...). `tools/prune_bundle.py` removes everything except
+QtCore/QtGui/QtWidgets and the plugins in use, numpy/tkinter/AVIF are excluded at build time, and the
+dependency is `PySide6-Essentials`. After pruning, CI runs `TilePrint --selftest` on the **built** app
+(a real Qt window, PDF export, Arabic text, pikepdf, Pillow ...) so a prune rule that breaks the app fails
+the build instead of reaching users. Run it yourself: `python -m tileprint --selftest`.
+
 ## Layout
 
 ```
@@ -72,6 +81,7 @@ src/tileprint/
   project.py    settings, save/load, job building
   app.py        PySide6 GUI
   textutil.py   bundled fonts + Arabic shaping
+tools/prune_bundle.py   post-PyInstaller size reduction
   i18n.py       English / Arabic strings
 ```
 
