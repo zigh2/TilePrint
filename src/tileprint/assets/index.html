@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TilePrint</title>
+<!--TP_TOKEN-->
+<link rel="stylesheet" href="ui/app.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" stroke="none" opacity=".95"/><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" stroke="none" opacity=".55"/><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" stroke="none" opacity=".55"/><rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" stroke="none" opacity=".95"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M4 20h14a2 2 0 0 0 1.9-1.4L22 11H8a2 2 0 0 0-1.9 1.4L4 20zM4 20V6a2 2 0 0 1 2-2h4l2 3h6a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-9 9"/></symbol>
+    <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-chev-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l10 17.5H2z"/><path d="M12 10v5M12 18h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+    <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+    <symbol id="i-fileminus" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14h6"/></symbol>
+    <symbol id="i-printer" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></symbol>
+    <symbol id="i-crosshair" viewBox="0 0 24 24"><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/></symbol>
+    <symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M5 16H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+    <symbol id="i-maxbox" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8v8"/></symbol>
+    <symbol id="i-vector" viewBox="0 0 24 24"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C9 12 12 14 17.5 6.5"/></symbol>
+    <symbol id="i-folderopen" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <header>
+    <div class="brand"><div class="mark"><svg class="ic"><use href="#i-logo"/></svg></div>TilePrint<small id="ver"></small></div>
+    <div class="file-chip" id="fileChip" hidden><svg class="ic sm"><use href="#i-file"/></svg><span id="fileChipName"></span></div>
+    <div class="spacer"></div>
+    <div class="group">
+      <button class="btn ghost icon" id="bUndo" data-i18n-title="undo"><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button class="btn ghost icon" id="bRedo" data-i18n-title="redo"><svg class="ic"><use href="#i-redo"/></svg></button>
+    </div>
+    <div class="vr"></div>
+    <div class="group anchor">
+      <button class="btn ghost" id="bOpen"><svg class="ic"><use href="#i-folder"/></svg><span data-i18n="open"></span></button>
+      <button class="btn ghost" id="bProject"><svg class="ic"><use href="#i-save"/></svg><span data-i18n="project"></span><svg class="ic sm"><use href="#i-chev"/></svg></button>
+      <div class="menu" id="projectMenu" hidden>
+        <button id="mSaveProject"><svg class="ic"><use href="#i-save"/></svg><div><b data-i18n="saveProject"></b><span class="d" data-i18n="saveProjectD"></span></div></button>
+        <button id="mOpenProject"><svg class="ic"><use href="#i-folderopen"/></svg><div><b data-i18n="openProject"></b><span class="d" data-i18n="openProjectD"></span></div></button>
+      </div>
+    </div>
+    <div class="vr"></div>
+    <div class="group">
+      <button class="btn ghost icon" id="bTheme" data-i18n-title="theme"><svg class="ic"><use id="themeUse" href="#i-moon"/></svg></button>
+      <button class="btn ghost" id="bLang" data-i18n-title="language"><svg class="ic"><use href="#i-globe"/></svg><span id="langLabel"></span></button>
+    </div>
+    <div class="anchor" style="margin-inline-start:8px">
+      <div class="split">
+        <button class="btn primary" id="bExport"><svg class="ic"><use href="#i-download"/></svg><span data-i18n="exportTiled"></span></button>
+        <button class="btn primary" id="bExportMenu" data-i18n-title="moreExports"><svg class="ic sm"><use href="#i-chev"/></svg></button>
+      </div>
+      <div class="menu" id="exportMenu" hidden>
+        <button id="mTiled"><svg class="ic"><use href="#i-grid"/></svg><div><b data-i18n="exportTiled"></b><span class="d" id="mTiledD"></span></div></button>
+        <button id="mFull"><svg class="ic"><use href="#i-maxbox"/></svg><div><b data-i18n="exportFull"></b><span class="d" id="mFullD"></span></div></button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <aside id="side">
+      <details class="card" open id="cSource">
+        <summary><span class="ico"><svg class="ic sm"><use href="#i-file"/></svg></span><span data-i18n="secSource"></span><svg class="ic sm chev"><use href="#i-chev"/></svg></summary>
+        <div class="body">
+          <div class="srcbox">
+            <div class="fi"><svg class="ic lg"><use id="srcIcon" href="#i-file"/></svg></div>
+            <div><div class="nm" id="srcName">—</div><div class="mt" id="srcMeta"></div></div>
+            <button class="btn sm" id="bChange" data-i18n="change"></button>
+          </div>
+          <div class="pager" id="pager" hidden>
+            <button class="btn icon sm" id="pPrev"><svg class="ic sm"><use href="#i-left"/></svg></button>
+            <div class="cnt" id="pCnt"></div>
+            <button class="btn icon sm" id="pNext"><svg class="ic sm"><use href="#i-right"/></svg></button>
+          </div>
+          <div class="row"><span class="l" data-i18n="unit"></span><div class="seg" data-seg="unit"></div></div>
+          <label class="switch" id="rowSheetFit" hidden><span class="t"><b data-i18n="sheetFit"></b><span data-i18n="sheetFitD"></span></span><input type="checkbox" data-sw="sheet_fit_one_page"><i></i></label>
+        </div>
+      </details>
+
+      <details class="card" open id="cSize">
+        <summary><span class="ico"><svg class="ic sm"><use href="#i-maxbox"/></svg></span><span data-i18n="secSize"></span><svg class="ic sm chev"><use href="#i-chev"/></svg></summary>
+        <div class="body">
+          <div class="row"><span class="l" data-i18n="size"></span><select id="preset"></select></div>
+          <div class="row" id="rowOrient"><span class="l" data-i18n="orientation"></span><div class="seg" data-seg="poster_orient"></div></div>
+          <div class="row" id="rowCustom" hidden>
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end">
+              <div class="row"><span class="l" data-i18n="width"></span><div class="num" data-num="poster_w" data-min="1"></div></div>
+              <button class="lockbtn" id="lock" aria-pressed="true" data-i18n-title="keepRatio"><svg class="ic sm"><use id="lockUse" href="#i-lock"/></svg></button>
+              <div class="row"><span class="l" data-i18n="height"></span><div class="num" data-num="poster_h" data-min="1"></div></div>
+            </div>
+          </div>
+          <div class="row"><span class="l" data-i18n="scaling"></span><div class="seg" data-seg="scale_mode"></div></div>
+          <button class="btn sm block" id="bReset"><svg class="ic sm"><use href="#i-move"/></svg><span data-i18n="resetPos"></span></button>
+          <div id="dpiBox" hidden></div>
+        </div>
+      </details>
+
+      <details class="card" open id="cPaper">
+        <summary><span class="ico"><svg class="ic sm"><use href="#i-printer"/></svg></span><span data-i18n="secPaper"></span><svg class="ic sm chev"><use href="#i-chev"/></svg></summary>
+        <div class="body">
+          <div class="row"><span class="l" data-i18n="paper"></span><select id="paper"></select></div>
+          <div class="row"><span class="l" data-i18n="orientation"></span><div class="seg" data-seg="paper_orient"></div></div>
+          <div class="row three">
+            <div class="row"><span class="l" data-i18n="margin"></span><div class="num" data-num="margin" data-min="0"></div></div>
+            <div class="row"><span class="l" data-i18n="header"></span><div class="num" data-num="header" data-min="0"></div></div>
+            <div class="row"><span class="l" data-i18n="overlap"></span><div class="num" data-num="overlap" data-min="0"></div></div>
+          </div>
+          <div class="row"><span class="l" data-i18n="numbering"></span><div class="seg" data-seg="numbering"></div></div>
+        </div>
+      </details>
+
+      <details class="card" open id="cOpts">
+        <summary><span class="ico"><svg class="ic sm"><use href="#i-sliders"/></svg></span><span data-i18n="secOpts"></span><svg class="ic sm chev"><use href="#i-chev"/></svg></summary>
+        <div class="body">
+          <label class="switch"><span class="t"><b data-i18n="smartCut"></b><span data-i18n="smartCutD"></span></span><input type="checkbox" data-sw="smart_cut"><i></i></label>
+          <label class="switch"><span class="t"><b data-i18n="skipBlank"></b><span data-i18n="skipBlankD"></span></span><input type="checkbox" data-sw="skip_blank"><i></i></label>
+          <label class="switch"><span class="t"><b data-i18n="cropMarks"></b><span data-i18n="cropMarksD"></span></span><input type="checkbox" data-sw="crop_marks"><i></i></label>
+          <label class="switch"><span class="t"><b data-i18n="ticks"></b><span data-i18n="ticksD"></span></span><input type="checkbox" data-sw="overlap_guides"><i></i></label>
+          <label class="switch"><span class="t"><b data-i18n="footerSw"></b><span data-i18n="footerD"></span></span><input type="checkbox" data-sw="footer"><i></i></label>
+          <label class="switch"><span class="t"><b data-i18n="scaleBar"></b><span data-i18n="scaleBarD"></span></span><input type="checkbox" data-sw="scale_bar"><i></i></label>
+          <label class="switch"><span class="t"><b data-i18n="blankBacks"></b><span data-i18n="blankBacksD"></span></span><input type="checkbox" data-sw="blank_backs"><i></i></label>
+          <div class="row"><span class="l" data-i18n="footerName"></span><input class="txt" id="footerText" maxlength="120"></div>
+        </div>
+      </details>
+    </aside>
+
+    <section id="stage">
+      <canvas id="cv"></canvas>
+
+      <div id="empty">
+        <div class="drop" id="drop">
+          <div class="big"><svg class="ic xl"><use href="#i-grid"/></svg></div>
+          <h1 data-i18n="emptyTitle"></h1>
+          <p data-i18n="emptyText"></p>
+          <button class="btn primary" id="bOpen2"><svg class="ic"><use href="#i-folder"/></svg><span data-i18n="chooseFile"></span></button>
+          <div class="formats">
+            <span><svg class="ic sm"><use href="#i-file"/></svg>PDF</span>
+            <span><svg class="ic sm"><use href="#i-image"/></svg>PNG · JPG · TIFF</span>
+            <span><svg class="ic sm"><use href="#i-table"/></svg>XLSX · ODS · CSV</span>
+          </div>
+          <div class="features">
+            <div><b><svg class="ic sm"><use href="#i-vector"/></svg><span data-i18n="f1t"></span></b><span data-i18n="f1d"></span></div>
+            <div><b><svg class="ic sm"><use href="#i-layers"/></svg><span data-i18n="f2t"></span></b><span data-i18n="f2d"></span></div>
+            <div><b><svg class="ic sm"><use href="#i-scissors"/></svg><span data-i18n="f3t"></span></b><span data-i18n="f3d"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="float" id="chips" hidden></div>
+      <div id="scalebar" hidden><span id="sbLabel"></span><i id="sbBar"></i></div>
+      <div id="hintbar" hidden data-i18n="hint"></div>
+      <div class="float" id="tilechip" hidden></div>
+      <div class="float" id="zoom" hidden>
+        <button class="btn ghost icon sm" id="zOut" data-i18n-title="zoomOut"><svg class="ic sm"><use href="#i-minus"/></svg></button>
+        <span class="pct" id="zPct">100%</span>
+        <button class="btn ghost icon sm" id="zIn" data-i18n-title="zoomIn"><svg class="ic sm"><use href="#i-plus"/></svg></button>
+        <div class="vr" style="margin:0 2px"></div>
+        <button class="btn ghost icon sm" id="zFit" data-i18n-title="fit"><svg class="ic sm"><use href="#i-fit"/></svg></button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="sheetModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <header>
+      <div style="font-weight:650" id="smTitle"></div>
+      <span class="badge neutral" id="smSub"></span>
+      <div class="spacer"></div>
+      <div class="navpad" id="smNav">
+        <button class="btn ghost icon sm" data-nav="left"><svg class="ic sm"><use href="#i-left"/></svg></button>
+        <button class="btn ghost icon sm" data-nav="up"><svg class="ic sm"><use href="#i-chev-up"/></svg></button>
+        <button class="btn ghost icon sm" data-nav="down"><svg class="ic sm"><use href="#i-chev"/></svg></button>
+        <button class="btn ghost icon sm" data-nav="right"><svg class="ic sm"><use href="#i-right"/></svg></button>
+      </div>
+      <button class="btn ghost icon" id="smClose"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="view"><div class="spin" id="smSpin"></div><img id="smImg" alt="" hidden></div>
+  </div>
+</div>
+
+<div id="busy" hidden>
+  <div class="busycard"><div class="spin"></div><h3 id="busyTitle"></h3><p id="busyText"></p><div class="bar"><i id="busyBar"></i></div></div>
+</div>
+<div id="toasts"></div>
+<div id="dropveil" hidden></div>
+<script src="ui/app.js"></script>
+</body>
+</html>
