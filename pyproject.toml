@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tileprint"
+version = "0.1.0"
+description = "Split posters, drawings and tables into printable A4 tiles with page arrows, keeping vector artwork vector."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "PySide6>=6.6", "pikepdf>=9.0", "pypdfium2>=4.30", "reportlab>=4.0",
+  "Pillow>=10.0", "openpyxl>=3.1", "arabic-reshaper>=3.0", "python-bidi>=0.4.2",
+]
+
+[project.gui-scripts]
+tileprint = "tileprint.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+tileprint = ["assets/*", "assets/fonts/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
