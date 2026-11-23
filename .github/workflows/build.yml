@@ -13,13 +13,11 @@ jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
-      - run: sudo apt-get update && sudo apt-get install -y libreoffice-calc libegl1 libxkbcommon0
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
-        env: { QT_QPA_PLATFORM: offscreen }
 
   package:
     needs: test
@@ -32,24 +30,70 @@ jobs:
           - { os: ubuntu-22.04,   name: linux,   sep: ":" }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: pip install -r requirements-dev.txt
       - name: Build (PyInstaller, one-folder)
         shell: bash
         run: |
+          EXTRA=()
+          case "${{ matrix.name }}" in
+            windows) EXTRA=(--icon src/tileprint/assets/icon.ico --collect-all webview --collect-all pythonnet --collect-all clr_loader) ;;
+            macos)   EXTRA=(--icon src/tileprint/assets/icon.png --collect-all webview) ;;
+            linux)   EXTRA=(--exclude-module gi) ;;   # Linux uses browser mode: no WebKitGTK needed in the bundle
+          esac
           pyinstaller --noconfirm --windowed --name TilePrint \
-            --paths src \
-            --icon src/tileprint/assets/icon.${{ matrix.name == 'windows' && 'ico' || 'png' }} \
+            --paths src "${EXTRA[@]}" \
             --add-data "src/tileprint/assets${{ matrix.sep }}tileprint/assets" \
             --collect-all pypdfium2 --collect-all pypdfium2_raw --collect-all pikepdf \
+            --exclude-module pikepdf.pdfa --exclude-module numpy --exclude-module tkinter \
+            --exclude-module PIL._avif --exclude-module PIL._imagingtk --exclude-module unittest \
+            --exclude-module cryptography --exclude-module PySide6 --exclude-module PyQt5 \
+            --exclude-module PyQt6 --exclude-module qtpy \
             run_tileprint.py
+
+      - name: Self-test the built app, engine (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $env:TILEPRINT_SELFTEST_LOG = "$PWD\selftest.log"
+          $p = Start-Process -FilePath dist\TilePrint\TilePrint.exe -ArgumentList '--selftest' -Wait -PassThru
+          if (Test-Path selftest.log) { Get-Content selftest.log }
+          if ($p.ExitCode -ne 0) { throw "self-test failed (exit $($p.ExitCode))" }
+
+      - name: Self-test the built app, web view (Windows)
+        if: matrix.name == 'windows'
+        continue-on-error: true   # needs the WebView2 runtime on the runner; informative only
+        shell: pwsh
+        run: |
+          $env:TILEPRINT_SELFTEST_LOG = "$PWD\selftest_ui.log"
+          $p = Start-Process -FilePath dist\TilePrint\TilePrint.exe -ArgumentList '--selftest','--ui' -Wait -PassThru
+          if (Test-Path selftest_ui.log) { Get-Content selftest_ui.log }
+          if ($p.ExitCode -ne 0) { throw "web view self-test failed (exit $($p.ExitCode))" }
+
+      - name: Self-test the built app, engine (macOS / Linux)
+        if: matrix.name != 'windows'
+        shell: bash
+        run: |
+          BIN=dist/TilePrint/TilePrint
+          [ "${{ matrix.name }}" = "macos" ] && BIN=dist/TilePrint.app/Contents/MacOS/TilePrint
+          TILEPRINT_SELFTEST_LOG=selftest.log "$BIN" --selftest || { cat selftest.log || true; exit 1; }
+          cat selftest.log
+
+      - name: Self-test the built app, web view (macOS)
+        if: matrix.name == 'macos'
+        continue-on-error: true   # headless runners may lack a window server; informative only
+        run: |
+          TILEPRINT_SELFTEST_LOG=selftest_ui.log dist/TilePrint.app/Contents/MacOS/TilePrint --selftest --ui
+          cat selftest_ui.log
 
       - name: Package (Windows portable zip)
         if: matrix.name == 'windows'
         shell: pwsh
-        run: Compress-Archive -Path dist/TilePrint -DestinationPath TilePrint-windows-portable.zip
+        run: |
+          7z a -tzip -mx=9 TilePrint-windows-portable.zip dist/TilePrint
+          7z a -t7z -mx=9 -ms=on TilePrint-windows-portable.7z dist/TilePrint
 
       - name: Package (macOS dmg)
         if: matrix.name == 'macos'
@@ -69,11 +113,12 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
           ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir TilePrint-linux-x86_64.AppImage
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: TilePrint-${{ matrix.name }}
           path: |
             TilePrint-windows-portable.zip
+            TilePrint-windows-portable.7z
             TilePrint-macos.dmg
             TilePrint-linux-x86_64.AppImage
           if-no-files-found: error
@@ -84,7 +129,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions: { contents: write }
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with: { path: artifacts, merge-multiple: true }
       - uses: softprops/action-gh-release@v2
         with: { files: artifacts/* }

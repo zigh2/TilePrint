@@ -1,0 +1,53 @@
+name: android
+
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", ".github/workflows/android.yml", "VERSION"]
+  pull_request:
+    paths: ["android/**"]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: Engine tests (the Kotlin engine must match the desktop one)
+        working-directory: android
+        run: gradle :core:test --no-daemon --stacktrace
+      - name: Release keystore (optional)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "TP_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "No ANDROID_KEYSTORE_BASE64 secret: the APK will be signed with the debug key."
+          fi
+      - name: Build the APK
+        working-directory: android
+        env:
+          TP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TP_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          TP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+      - name: Name the APK
+        run: |
+          V="$(tr -d ' \r\n' < VERSION)"
+          cp android/app/build/outputs/apk/release/app-release.apk "TilePrint-v$V-android.apk"
+          ls -la TilePrint-v*-android.apk
+      - uses: actions/upload-artifact@v6
+        with:
+          name: TilePrint-android
+          path: TilePrint-v*-android.apk
+          if-no-files-found: error
