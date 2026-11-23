@@ -6,3 +6,8 @@ dist/
 .pytest_cache/
 .venv/
 *.spec
+android/.gradle/
+android/**/build/
+android/local.properties
+android/.idea/
+*.jks

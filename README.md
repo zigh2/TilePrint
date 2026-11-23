@@ -2,7 +2,7 @@
 
 Split a large PDF, image or spreadsheet into printable A4 (or any paper) tiles. Every sheet gets a thin frame and **arrows with the page numbers of the neighbouring sheets above the frame**, like the poster printing of family-tree programs. The output is a PDF that **keeps vector artwork vector**.
 
-Windows · macOS · Linux — English and Arabic UI (full RTL), light and dark themes.
+Windows · macOS · Linux · **Android** (native app in `android/`) — English and Arabic UI (full RTL), light and dark themes.
 
 ## What you get
 
@@ -53,6 +53,10 @@ The version comes from the `VERSION` file in the zip (fallback: the number in it
 
 * **macOS:** not code-signed (needs a paid Apple Developer account): first launch via right-click → Open.
 * **Windows:** SmartScreen may warn for an unsigned executable. Needs the WebView2 runtime (included in Windows 11 and current Windows 10).
+
+## Android
+
+`android/` holds a native Kotlin / Jetpack Compose app that does the same job on phones and tablets (PDF and images; no spreadsheets). Its layout engine is checked against the Python one by a parity test. See [android/README.md](android/README.md). Releases attach `TilePrint-vX.Y.Z-android.apk`.
 
 ## Layout
 
