@@ -21,7 +21,7 @@ jobs:
         run: |
           SDKM="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -n1)"
           yes | "$SDKM" --licenses > /dev/null || true
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: "8.10.2"
       - name: Engine tests (the Kotlin engine must match the desktop one)
