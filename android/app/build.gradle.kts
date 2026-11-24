@@ -18,6 +18,8 @@ android {
         applicationId = "app.tileprint"
         minSdk = 26
         targetSdk = 35
+        // English and Arabic only: keeps the APK small (AGP 8.7 API; renamed in 8.8)
+        resourceConfigurations += listOf("en", "ar")
         versionName = versionText
         versionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
     }
@@ -57,10 +59,6 @@ android {
     }
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "/META-INF/DEPENDENCIES", "/META-INF/LICENSE*", "/META-INF/NOTICE*")
-    }
-    androidResources {
-        // English and Arabic only: keeps the APK small
-        localeFilters += listOf("en", "ar")
     }
 }
 

@@ -625,7 +625,12 @@ let dragDepth = 0;
 window.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; $('#dropveil').hidden = false; $('#dropveil').textContent = t('dropHere'); $('#drop').classList.add('over'); });
 window.addEventListener('dragleave', e => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) { $('#dropveil').hidden = true; $('#drop').classList.remove('over'); } });
 window.addEventListener('dragover', e => e.preventDefault());
+// Desktop: pywebview delivers dropped files (with real paths) to Python, which opens them and calls
+// TP.afterExternalOpen. Here we only clean up the overlay and show progress. Browser mode: upload the file.
 window.addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; $('#dropveil').hidden = true; $('#drop').classList.remove('over');
+  if (!token && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { busy(t('opening'), '', null); setTimeout(unbusy, 60000); } }, true);
+window.addEventListener('drop', e => {
+  if (!token) return;                         // desktop: handled by Python
   const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) handleFile(f); });
 window.addEventListener('contextmenu', e => { if (!e.target.matches('input')) e.preventDefault(); });
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!store.get('tp-theme')) applyTheme(); });
@@ -641,6 +646,11 @@ async function boot() {
   const sf = await call('startup_file'); if (sf && sf.path) await openPath(sf.path);
   TP.ready = true;
 }
+TP.afterExternalOpen = r => {            // a file dropped on the desktop window (opened by Python)
+  unbusy();
+  if (!r || r.ok === false) { toast('bad', t('error'), (r && r.error) || ''); return; }
+  selected = null; apply(r.state, { fit: true });
+};
 TP.apply = apply; TP.openPath = openPath; TP.call = call; TP.state = () => S; TP.openSheet = openSheet;
 TP.setView = (s, tx, ty) => { view = { s, tx, ty }; draw(); scheduleRegion(); };
 TP.fit = fit;

@@ -30,6 +30,18 @@ def _has_engine() -> bool:
     return True
 
 
+def drop_handler(api: Api):
+    """pywebview hands over dropped files (with their real paths) only through its Python-side DOM
+    events: a plain JavaScript `drop` listener cannot see the path."""
+    def on_drop(event) -> None:
+        for f in ((event.get("dataTransfer") or {}).get("files") or []):
+            path = f.get("pywebviewFullPath")
+            if path:
+                api._drop_open(path)
+                return
+    return on_drop
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if "-h" in argv or "--help" in argv:
@@ -55,8 +67,16 @@ def main(argv=None) -> int:
                 width=1440, height=920, min_size=(1040, 680), background_color="#0e1116",
                 text_select=False)
             api._bind(window, "desktop")
+
+            def bind_events(win):
+                try:
+                    from webview.dom import DOMEventHandler
+                    win.dom.document.events.drop += DOMEventHandler(drop_handler(api), True, True)
+                except Exception as e:      # dropping is a convenience; the Open button still works
+                    print(f"Drag and drop is unavailable: {e}", file=sys.stderr)
+
             try:
-                webview.start(http_server=True, private_mode=False, storage_path=_storage_dir())
+                webview.start(bind_events, window, http_server=True, private_mode=False, storage_path=_storage_dir())
                 return 0
             except Exception as e:     # no GTK/Qt web engine on this machine (typically Linux)
                 print(f"No web view engine available ({e}); opening your browser instead.", file=sys.stderr)

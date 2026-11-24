@@ -81,6 +81,23 @@ class Api:
         self._startup: Optional[str] = None
 
     # ------------------------------------------------------------------ plumbing
+    @staticmethod
+    def _open_types() -> tuple:
+        """Open-dialog filters. pywebview's format: 'Description (*.ext;*.ext2)' with SEMICOLONS."""
+        exts = ";".join(f"*{e}" for e in sorted({".pdf"} | S.IMAGE_EXTS | S.SHEET_EXTS))
+        return (f"Supported files ({exts})", "All files (*.*)")
+
+    @staticmethod
+    def _project_types() -> tuple:
+        return (f"TilePrint project (*{PROJECT_EXT})",)
+
+    def _drop_open(self, path: str) -> None:
+        """A file was dropped on the window (called from pywebview's DOM-event thread, which is the only
+        place the real path is available). Opens it and tells the UI."""
+        result = (self.open_project_path(path) if path.lower().endswith(PROJECT_EXT) else self.open_path(path))
+        if self._window is not None:
+            self._window.evaluate_js("window.TP && window.TP.afterExternalOpen(" + json.dumps(result, ensure_ascii=False) + ")")
+
     def _bind(self, window, mode: str = "desktop") -> None:
         self._window, self._mode = window, mode
 
@@ -171,10 +188,8 @@ class Api:
         if not self._window:
             return {"ok": False, "error": "no window"}
         import webview
-        exts = " ".join(f"*{e}" for e in sorted({".pdf"} | S.IMAGE_EXTS | S.SHEET_EXTS))
         res = self._window.create_file_dialog(
-            webview.FileDialog.OPEN, allow_multiple=False,
-            file_types=(f"Supported files ({exts})", "All files (*.*)"))
+            webview.FileDialog.OPEN, allow_multiple=False, file_types=self._open_types())
         if not res:
             return {"ok": True, "cancelled": True, "state": self.get_state()}
         return self.open_path(res[0])
@@ -447,7 +462,7 @@ class Api:
             return {"ok": False, "error": "no window"}
         import webview
         res = self._window.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=False,
-                                              file_types=(f"TilePrint project (*{PROJECT_EXT})",))
+                                              file_types=self._project_types())
         if not res:
             return {"ok": True, "cancelled": True, "state": self.get_state()}
         return self.open_project_path(res[0])
