@@ -59,7 +59,8 @@ def _actual_overlaps(layout: TileLayout, row: int, col: int) -> dict:
 
 def draw_page_overlay(c: canvas.Canvas, layout: TileLayout, page: PlannedPage,
                       opt: OverlayOptions) -> None:
-    x0, y0, x1, y1 = layout.frame
+    x0, y0, x1, y1 = layout.tile_frame(page.tile)       # this sheet's cut frame
+    fx0, _fy0, fx1, _fy1 = layout.frame                   # the full printable width (footer)
     pw, ph = layout.paper_w, layout.paper_h
     m, hdr = layout.margin, layout.header
     black = 0
@@ -86,7 +87,7 @@ def draw_page_overlay(c: canvas.Canvas, layout: TileLayout, page: PlannedPage,
     # ---- overlap marks: short ticks in the margins only (the content area stays clean) --
     # A tick shows where the neighbouring sheet's frame edge falls, so sheets can be aligned
     # when gluing: line the neighbour's frame edge up with the tick on both ends.
-    if opt.overlap_guides and m >= 3 * PT_PER_MM:
+    if opt.overlap_guides and layout.overlap > 1e-6 and m >= 3 * PT_PER_MM:
         ov = _actual_overlaps(layout, page.tile.row, page.tile.col)
         gap, ln = 1.0 * PT_PER_MM, min(m - 1.0 * PT_PER_MM, 4 * PT_PER_MM) - 1.0 * PT_PER_MM
         ln = max(ln, 1.5 * PT_PER_MM)
@@ -109,14 +110,15 @@ def draw_page_overlay(c: canvas.Canvas, layout: TileLayout, page: PlannedPage,
         c.setStrokeGray(black)
         c.setLineWidth(0.4)
 
-    # ---- header: neighbour arrows + current page ---------------------------
+    # ---- header: neighbour arrows + current page. Laid out over the FULL printable width (the band is cut
+    # away anyway), so it never collides even above a narrow last sheet. ---------------------------
     if hdr > 0:
         fs = max(6.0, min(11.0, hdr * 0.55))
         tri = fs * 0.8
         base = y1 + (hdr - fs * 0.72) / 2 - 0.5          # text baseline in the band
         mid = base + fs * 0.36
         inset = 3 * PT_PER_MM
-        cxp = (x0 + x1) / 2
+        cxp = (fx0 + fx1) / 2
 
         center_txt = page.label if opt.numbering == "rc" else f"{page.number}"
         small = f"/ {page.total}" if opt.numbering == "seq" else f"{page.number}/{page.total}"
@@ -131,12 +133,12 @@ def draw_page_overlay(c: canvas.Canvas, layout: TileLayout, page: PlannedPage,
         gap = 2.5
         # horizontal neighbours at the outer ends of the frame
         if "left" in page.neighbors:
-            _triangle(c, x0 + inset + tri / 2, mid, tri, "left")
-            draw_text(c, x0 + inset + tri + gap, base, page.neighbors["left"], fs, True)
+            _triangle(c, fx0 + inset + tri / 2, mid, tri, "left")
+            draw_text(c, fx0 + inset + tri + gap, base, page.neighbors["left"], fs, True)
         if "right" in page.neighbors:
             t = page.neighbors["right"]
-            draw_text(c, x1 - inset - tri - gap, base, t, fs, True, align="right")
-            _triangle(c, x1 - inset - tri / 2, mid, tri, "right")
+            draw_text(c, fx1 - inset - tri - gap, base, t, fs, True, align="right")
+            _triangle(c, fx1 - inset - tri / 2, mid, tri, "right")
         # vertical neighbours next to the page number
         if "up" in page.neighbors:
             t = page.neighbors["up"]
@@ -155,26 +157,26 @@ def draw_page_overlay(c: canvas.Canvas, layout: TileLayout, page: PlannedPage,
         fs = 6.5
         yb = m / 2 - fs * 0.35
         lang = opt.language
-        left_w = (x1 - x0) * 0.38
+        left_w = (fx1 - fx0) * 0.38
         name = fit_text(opt.footer_name, fs, left_w) if opt.footer_name else ""
         if name:
-            draw_text(c, x0, yb, name, fs)
+            draw_text(c, fx0, yb, name, fs)
         mid_txt = tr("page_of", lang, n=page.number, total=page.total) + "  (" + \
             tr("row_col", lang, r=page.tile.row + 1, c=page.tile.col + 1) + ")"
-        draw_text(c, (x0 + x1) / 2, yb, mid_txt, fs, align="center")
+        draw_text(c, (fx0 + fx1) / 2, yb, mid_txt, fs, align="center")
         right_bits = []
         if opt.scale_text:
             right_bits.append(tr("scale", lang, s=opt.scale_text))
         right_bits.append(_dt.date.today().isoformat())
         right = "  ·  ".join(right_bits)
-        draw_text(c, x1, yb, right, fs, align="right")
+        draw_text(c, fx1, yb, right, fs, align="right")
         # real-size scale bar (prints 1:1 on the sheet = true poster length)
         if opt.scale_bar:
             options = ([(2 * PT_PER_INCH, "2", "in"), (1 * PT_PER_INCH, "1", "in")] if opt.imperial_bar
                        else [(5 * PT_PER_CM, "5", "cm"), (3 * PT_PER_CM, "3", "cm"), (2 * PT_PER_CM, "2", "cm")])
             rw = text_width(right, fs)
-            bx1 = x1 - rw - 10
-            floor = (x0 + x1) / 2 + text_width(mid_txt, fs) / 2 + 12
+            bx1 = fx1 - rw - 10
+            floor = (fx0 + fx1) / 2 + text_width(mid_txt, fs) / 2 + 12
             for length, v, u in options:
                 label = tr("real_length", lang, v=v, u=u)
                 bx0 = bx1 - length

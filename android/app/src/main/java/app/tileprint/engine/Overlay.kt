@@ -56,8 +56,10 @@ object Overlay {
     }
 
     fun draw(cs: PDPageContentStream, f: PdfFonts, layout: TileLayout, page: PlannedPage, opt: OverlayOptions) {
-        val fr = layout.frame
-        val x0 = fr[0].toFloat(); val y0 = fr[1].toFloat(); val x1 = fr[2].toFloat(); val y1 = fr[3].toFloat()
+        val tf = layout.tileFrame(page.tile)                     // this sheet's cut frame
+        val x0 = tf[0].toFloat(); val y0 = tf[1].toFloat(); val x1 = tf[2].toFloat(); val y1 = tf[3].toFloat()
+        val ff = layout.frame                                      // the full printable width (header band, footer)
+        val fx0 = ff[0].toFloat(); val fx1 = ff[2].toFloat()
         val m = layout.margin.toFloat()
         val hdr = layout.header.toFloat()
 
@@ -82,7 +84,7 @@ object Overlay {
         }
 
         // overlap ticks: short marks in the margins only (the content area stays clean)
-        if (opt.overlapTicks && m >= 3 * MM) {
+        if (opt.overlapTicks && layout.overlap > 1e-6 && m >= 3 * MM) {
             val ov = overlaps(layout, page.tile.row, page.tile.col)
             val gap = 1f * MM
             val ln = max(min(m - 1 * MM, 4 * MM) - 1f * MM, 1.5f * MM)
@@ -100,14 +102,15 @@ object Overlay {
             cs.setStrokingColor(0f); cs.setLineWidth(0.4f)
         }
 
-        // header: neighbour arrows + current page
+        // header: neighbour arrows + current page, laid out over the FULL printable width (the band is cut away
+        // anyway), so it never collides even above a narrow last sheet
         if (hdr > 0) {
             val fs = max(6f, min(11f, hdr * 0.55f))
             val tri = fs * 0.8f
             val base = y1 + (hdr - fs * 0.72f) / 2 - 0.5f
             val mid = base + fs * 0.36f
             val inset = 3 * MM
-            val cxp = (x0 + x1) / 2
+            val cxp = (fx0 + fx1) / 2
             val centerTxt = if (opt.numbering == "rc") page.label else page.number.toString()
             val small = if (opt.numbering == "seq") "/ ${page.total}" else "${page.number}/${page.total}"
             val bigFs = fs * 1.35f
@@ -120,12 +123,12 @@ object Overlay {
             val rightEdge = cxp + totalW / 2
             val gap = 2.5f
             page.neighbors["left"]?.let {
-                cs.triangle(x0 + inset + tri / 2, mid, tri, "left")
-                PdfText.draw(cs, f, x0 + inset + tri + gap, base, it, fs, true)
+                cs.triangle(fx0 + inset + tri / 2, mid, tri, "left")
+                PdfText.draw(cs, f, fx0 + inset + tri + gap, base, it, fs, true)
             }
             page.neighbors["right"]?.let {
-                PdfText.draw(cs, f, x1 - inset - tri - gap, base, it, fs, true, PdfText.Align.RIGHT)
-                cs.triangle(x1 - inset - tri / 2, mid, tri, "right")
+                PdfText.draw(cs, f, fx1 - inset - tri - gap, base, it, fs, true, PdfText.Align.RIGHT)
+                cs.triangle(fx1 - inset - tri / 2, mid, tri, "right")
             }
             page.neighbors["up"]?.let {
                 val wt = PdfText.width(it, fs, true, f)
@@ -145,25 +148,25 @@ object Overlay {
             val fs = 6.5f
             val yb = m / 2 - fs * 0.35f
             val s = STRINGS[opt.language] ?: STRINGS.getValue("en")
-            val leftW = (x1 - x0) * 0.38f
+            val leftW = (fx1 - fx0) * 0.38f
             if (opt.footerName.isNotEmpty()) {
-                PdfText.draw(cs, f, x0, yb, PdfText.fit(opt.footerName, fs, leftW, f), fs)
+                PdfText.draw(cs, f, fx0, yb, PdfText.fit(opt.footerName, fs, leftW, f), fs)
             }
             val midTxt = s.getValue("page_of").format(Locale.US, page.number, page.total) + "  (" +
                 s.getValue("row_col").format(Locale.US, page.tile.row + 1, page.tile.col + 1) + ")"
-            PdfText.draw(cs, f, (x0 + x1) / 2, yb, midTxt, fs, false, PdfText.Align.CENTER)
+            PdfText.draw(cs, f, (fx0 + fx1) / 2, yb, midTxt, fs, false, PdfText.Align.CENTER)
             val bits = ArrayList<String>()
             if (opt.scaleText.isNotEmpty()) bits.add(s.getValue("scale").format(Locale.US, opt.scaleText))
             bits.add(LocalDate.now().toString())
             val right = bits.joinToString("  ·  ")
-            PdfText.draw(cs, f, x1, yb, right, fs, false, PdfText.Align.RIGHT)
+            PdfText.draw(cs, f, fx1, yb, right, fs, false, PdfText.Align.RIGHT)
             if (opt.scaleBar) {
                 val options = if (opt.imperialBar)
                     listOf(Triple(2 * 72f, "2", "in"), Triple(72f, "1", "in"))
                 else listOf(Triple(5 * 10 * MM, "5", "cm"), Triple(3 * 10 * MM, "3", "cm"), Triple(2 * 10 * MM, "2", "cm"))
                 val rw = PdfText.width(right, fs, false, f)
-                val bx1 = x1 - rw - 10
-                val floor = (x0 + x1) / 2 + PdfText.width(midTxt, fs, false, f) / 2 + 12
+                val bx1 = fx1 - rw - 10
+                val floor = (fx0 + fx1) / 2 + PdfText.width(midTxt, fs, false, f) / 2 + 12
                 for ((length, v, u) in options) {
                     val label = "$v $u"
                     val bx0 = bx1 - length

@@ -154,7 +154,9 @@ fun SettingsPanel(state: UiState, vm: EditorViewModel, onChangeFile: () -> Unit,
                     { v -> vm.update { it.copy(header = v) } }, Modifier.weight(1f))
             }
             NumberField(stringResource(R.string.overlap), s.overlap, unitLabel, unit::fromPt, unit::toPt,
-                { v -> vm.update { it.copy(overlap = v) } }, Modifier.fillMaxWidth())
+                { v -> vm.update { it.copy(overlap = v) } }, Modifier.fillMaxWidth(), allowZero = true)
+            Text(stringResource(if (s.overlap < 0.01) R.string.overlap_hint_0 else R.string.overlap_hint_n),
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FieldLabel(stringResource(R.string.numbering))
             Segmented(listOf("seq" to stringResource(R.string.num_seq), "rc" to stringResource(R.string.num_rc)),
                 s.numbering, { n -> vm.update { it.copy(numbering = n) } })
@@ -165,7 +167,7 @@ fun SettingsPanel(state: UiState, vm: EditorViewModel, onChangeFile: () -> Unit,
             SwitchRow(stringResource(R.string.smart_cut), stringResource(R.string.smart_cut_d), s.smartCut) { v -> vm.update { it.copy(smartCut = v) } }
             SwitchRow(stringResource(R.string.skip_blank), stringResource(R.string.skip_blank_d), s.skipBlank) { v -> vm.update { it.copy(skipBlank = v) } }
             SwitchRow(stringResource(R.string.crop_marks), stringResource(R.string.crop_marks_d), s.cropMarks) { v -> vm.update { it.copy(cropMarks = v) } }
-            SwitchRow(stringResource(R.string.overlap_ticks), stringResource(R.string.overlap_ticks_d), s.overlapTicks) { v -> vm.update { it.copy(overlapTicks = v) } }
+            SwitchRow(stringResource(R.string.overlap_ticks), stringResource(R.string.overlap_ticks_d), s.overlapTicks, enabled = s.overlap >= 0.01) { v -> vm.update { it.copy(overlapTicks = v) } }
             SwitchRow(stringResource(R.string.footer), stringResource(R.string.footer_d), s.footer) { v -> vm.update { it.copy(footer = v) } }
             SwitchRow(stringResource(R.string.scale_ruler), stringResource(R.string.scale_ruler_d), s.scaleBar) { v -> vm.update { it.copy(scaleBar = v) } }
             SwitchRow(stringResource(R.string.blank_backs), stringResource(R.string.blank_backs_d), s.blankBacks) { v -> vm.update { it.copy(blankBacks = v) } }

@@ -87,4 +87,6 @@
     <string name="group_us">أمريكي ومعماري</string>
     <string name="hint_gestures">قرّب بإصبعين · اسحب للتحريك · انقر مرتين على ورقة لمعاينتها</string>
     <string name="move_hint">اسحب لتحريك المحتوى</string>
+    <string name="overlap_hint_0">التداخل 0: قصّ كل ورقة على خط إطارها وألصق الأوراق جنباً إلى جنب. لا يتكرر أي جزء من الصورة.</string>
+    <string name="overlap_hint_n">كل ورقة تكرر هذا المقدار من جارتها لتتداخل وتُلصق. استخدم 0 للقص على الإطار واللصق جنباً إلى جنب.</string>
 </resources>

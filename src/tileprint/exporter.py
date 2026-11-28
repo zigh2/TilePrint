@@ -93,7 +93,7 @@ def export_tiled(src: Source, out_path: str, layout: TileLayout, pl: Placement,
                 continue
             page = out.add_blank_page(page_size=(layout.paper_w, layout.paper_h))
             _draw_source(out, page, form, geom, pl, layout.poster_w, layout.poster_h,
-                         layout.frame, (pp.tile.x, pp.tile.y))
+                         layout.tile_frame(pp.tile), (pp.tile.x, pp.tile.y))
             page.add_overlay(ov.pages[i])
             if blank_backs:
                 out.add_blank_page(page_size=(layout.paper_w, layout.paper_h))

@@ -11,7 +11,7 @@ Windows · macOS · Linux · **Android** (native app in `android/`) — English 
 | Inputs | PDF (any page), images (PNG/JPG/TIFF/…), spreadsheets (xlsx/xls/ods/csv via LibreOffice); drag and drop |
 | Final size | ISO A0–A8, B0–B8, US/ARCH presets, or custom width × height in mm / cm / in with a keep-proportions lock |
 | Placement | Fit / Fill / Stretch; drag the content on the canvas |
-| Tiling | Printer margin, overlap, automatic portrait/landscape (fewest sheets), **smart cut** (moves sheet edges onto empty space), **skip blank sheets** |
+| Tiling | **Edge to edge by default**: cut each sheet on its thin frame line and glue the sheets side by side, nothing repeated (overlap 0; set an overlap if you prefer to overlap and glue). Printer margin, automatic portrait/landscape (fewest sheets), **smart cut** (moves the cut line onto empty space, still edge to edge), **skip blank sheets**. The last sheet's frame stops at the poster edge, so the glued poster has exactly the poster size |
 | Sheet furniture | Thin frame, neighbour arrows ◄ ► ▲ ▼ with page numbers (omitted where there is no neighbour), 1·2·3 or A1·B2 numbering, crop marks, overlap ticks in the margin (nothing inside the frame), footer (name · page · date · scale), real-size ruler (5 cm / 2 in) |
 | Preview | Poster with the tile grid and numbers, overlap strips, skipped sheets hatched; wheel zoom with **crisp vector re-rendering**, pan, scale bar; double-click a sheet for the exact printed page |
 | Output | Tiled PDF and a single full-size PDF (plotters / print shops); "duplex printer" option adds blank backs |
@@ -19,6 +19,10 @@ Windows · macOS · Linux · **Android** (native app in `android/`) — English 
 | Project | Save / open `.tileprint` projects, undo / redo (Ctrl+Z / Ctrl+Y) |
 
 Shortcuts: Ctrl+O open · Ctrl+S save project · Ctrl+E export · Space+drag pan · `+` `-` `0` zoom / fit.
+
+## Cutting and gluing
+
+Print the PDF at **100 % / "Actual size"** (never "fit to page"). Each sheet has a thin frame: **cut along it**; the arrows, page numbers and footer outside the frame are cut away. Put the sheets next to each other following the arrows (the number next to an arrow is the neighbouring sheet) and glue them edge to edge: the image continues exactly across each cut and no part of it is printed twice. The thin printed lines are the cut guides; the crop marks at the frame corners show where to cut.
 
 ## How it works
 

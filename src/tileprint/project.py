@@ -29,7 +29,7 @@ class Settings:
     paper_orient: str = "auto"                # auto | portrait | landscape
     margin: float = 10 * PT_PER_MM
     header: float = 9 * PT_PER_MM
-    overlap: float = 10 * PT_PER_MM
+    overlap: float = 0.0                      # 0 = cut on the frame and glue edge to edge (nothing repeated)
     numbering: str = "seq"                    # seq | rc
     crop_marks: bool = True
     overlap_guides: bool = True
@@ -135,7 +135,7 @@ def build_job(src: S.Source, s: Settings, cache: Optional[RasterCache] = None) -
     if s.smart_cut and raster is not None:
         ink_x, ink_y = S.ink_profiles(raster)
     lay = L.build_layout(pw, ph, paper_w, paper_h, s.margin, s.header, s.overlap,
-                         ink_x, ink_y, res, smart_slack=min(s.overlap * 1.5, 15 * PT_PER_MM) if s.smart_cut else 0.0)
+                         ink_x, ink_y, res, smart_slack=(15 * PT_PER_MM if s.overlap <= 1e-6 else min(s.overlap * 1.5, 15 * PT_PER_MM)) if s.smart_cut else 0.0)
     skip = S.blank_tiles(raster, lay, res) if (s.skip_blank and raster is not None) else set()
     if len(skip) >= lay.rows * lay.cols:      # never produce an empty document
         skip = set()

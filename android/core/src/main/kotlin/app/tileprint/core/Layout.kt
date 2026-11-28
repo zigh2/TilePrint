@@ -58,6 +58,17 @@ data class Tile(val row: Int, val col: Int, val x: Double, val y: Double, val w:
 data class PlannedPage(val tile: Tile, val number: Int, val label: String,
                        val neighbors: Map<String, String>, val total: Int)
 
+/**
+ * Length each sheet prints along one axis. overlap > 0: the full frame; overlap == 0 (edge to edge):
+ * exactly up to where the next sheet starts, so frames are cut lines and nothing is repeated.
+ * The last sheet stops at the poster edge.
+ */
+fun axisSizes(starts: List<Double>, frame: Double, overlap: Double, total: Double): List<Double> =
+    starts.mapIndexed { i, s ->
+        if (overlap > EPS && i < starts.size - 1) frame
+        else min(frame, (if (i < starts.size - 1) starts[i + 1] else total) - s)
+    }
+
 /** Position in [lo, hi] (poster pt) with the least ink; ties go to the largest. */
 internal fun quietest(profile: DoubleArray, res: Double, lo: Double, hi: Double): Double {
     val i0 = max(0, ceil(lo / res).toInt())
@@ -96,7 +107,7 @@ fun axisStarts(total: Double, frame: Double, overlap: Double, profile: DoubleArr
 
 class TileLayout(val posterW: Double, val posterH: Double, val paperW: Double, val paperH: Double,
                  val margin: Double, val header: Double, val overlap: Double,
-                 val xs: List<Double>, val ys: List<Double>) {
+                 val xs: List<Double>, val ys: List<Double>, val ws: List<Double>, val hs: List<Double>) {
     /** (x0, y0, x1, y1) of the thin frame on the page (page space). */
     val frame: DoubleArray get() = doubleArrayOf(margin, margin, paperW - margin, paperH - margin - header)
     val frameW: Double get() = paperW - 2 * margin
@@ -105,8 +116,11 @@ class TileLayout(val posterW: Double, val posterH: Double, val paperW: Double, v
     val rows: Int get() = ys.size
 
     fun tiles(): List<Tile> = ys.withIndex().flatMap { (r, y) ->
-        xs.withIndex().map { (c, x) -> Tile(r, c, x, y, frameW, frameH) }
+        xs.withIndex().map { (c, x) -> Tile(r, c, x, y, ws[c], hs[r]) }
     }
+
+    /** (x0, y0, x1, y1) of this sheet's frame on the page: anchored at the top-left of the printable area. */
+    fun tileFrame(t: Tile): DoubleArray = frame.let { doubleArrayOf(it[0], it[3] - t.h, it[0] + t.w, it[3]) }
 
     /** Printed pages in reading order. numbering: "seq" (1,2,3 ...) or "rc" (A1, B2 ...). */
     fun plan(skip: Set<Pair<Int, Int>> = emptySet(), numbering: String = "seq"): List<PlannedPage> {
@@ -125,6 +139,15 @@ class TileLayout(val posterW: Double, val posterH: Double, val paperW: Double, v
     }
 }
 
+/** Middle of every overlap band (= the shared edge when overlap is 0): the single "cut line" between two sheets. */
+fun cutPositions(starts: List<Double>, sizes: List<Double>, total: Double): List<Double> =
+    listOf(0.0) + starts.drop(1).mapIndexed { i, s -> (s + starts[i] + sizes[i]) / 2 } + listOf(total)
+
+/** The area a sheet owns in the cut grid: (x0, y0, x1, y1) in poster space. The regions tile the poster exactly. */
+fun TileLayout.region(t: Tile, cutsX: List<Double> = cutPositions(xs, ws, posterW),
+                      cutsY: List<Double> = cutPositions(ys, hs, posterH)): DoubleArray =
+    doubleArrayOf(cutsX[t.col], cutsY[t.row], cutsX[t.col + 1], cutsY[t.row + 1])
+
 fun buildLayout(posterW: Double, posterH: Double, paperW: Double, paperH: Double,
                 margin: Double, header: Double, overlap: Double,
                 inkX: DoubleArray? = null, inkY: DoubleArray? = null,
@@ -132,9 +155,10 @@ fun buildLayout(posterW: Double, posterH: Double, paperW: Double, paperH: Double
     val fw = paperW - 2 * margin
     val fh = paperH - 2 * margin - header
     require(fw > overlap + EPS && fh > overlap + EPS) { "margins/header/overlap leave no printable area" }
-    return TileLayout(posterW, posterH, paperW, paperH, margin, header, overlap,
-        axisStarts(posterW, fw, overlap, inkX, inkRes, smartSlack),
-        axisStarts(posterH, fh, overlap, inkY, inkRes, smartSlack))
+    val xs = axisStarts(posterW, fw, overlap, inkX, inkRes, smartSlack)
+    val ys = axisStarts(posterH, fh, overlap, inkY, inkRes, smartSlack)
+    return TileLayout(posterW, posterH, paperW, paperH, margin, header, overlap, xs, ys,
+        axisSizes(xs, fw, overlap, posterW), axisSizes(ys, fh, overlap, posterH))
 }
 
 /** True if landscape sheets need fewer pages than portrait (ties -> less waste -> portrait). */

@@ -18,7 +18,7 @@ data class Settings(
     val paperOrient: Orient = Orient.AUTO,
     val margin: Double = 10 * Paper.PT_PER_MM,
     val header: Double = 9 * Paper.PT_PER_MM,
-    val overlap: Double = 10 * Paper.PT_PER_MM,
+    val overlap: Double = 0.0,                       // 0 = cut on the frame and glue edge to edge
     val numbering: String = "seq",                   // seq | rc
     val cropMarks: Boolean = true,
     val overlapTicks: Boolean = true,
@@ -78,7 +78,7 @@ fun buildJob(src: SourceInfo, s: Settings, raster: (Placement, Double, Double) -
     var inkX: DoubleArray? = null
     var inkY: DoubleArray? = null
     if (s.smartCut && r != null) Raster.inkProfiles(r).let { inkX = it.first; inkY = it.second }
-    val slack = if (s.smartCut) min(s.overlap * 1.5, 15 * Paper.PT_PER_MM) else 0.0
+    val slack = if (!s.smartCut) 0.0 else if (s.overlap <= 1e-6) 15 * Paper.PT_PER_MM else min(s.overlap * 1.5, 15 * Paper.PT_PER_MM)
     val lay = buildLayout(pw, ph, paperW, paperH, s.margin, s.header, s.overlap, inkX, inkY, r?.res ?: 1.0, slack)
     var skip: Set<Pair<Int, Int>> = if (s.skipBlank && r != null) Raster.blankTiles(r, lay) else emptySet()
     if (skip.size >= lay.rows * lay.cols) skip = emptySet()      // never produce an empty document

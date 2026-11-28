@@ -109,6 +109,22 @@ jobs:
           printf '[Desktop Entry]\nType=Application\nName=TilePrint\nExec=TilePrint\nIcon=tileprint\nCategories=Graphics;Office;\n' > AppDir/tileprint.desktop
           printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexec "$HERE/usr/bin/TilePrint" "$@"\n' > AppDir/AppRun
           chmod +x AppDir/AppRun
+          mkdir -p AppDir/usr/share/metainfo
+          cat > AppDir/usr/share/metainfo/tileprint.appdata.xml <<'XML'
+          <component type="desktop-application">
+            <id>tileprint</id>
+            <metadata_license>CC0-1.0</metadata_license>
+            <project_license>MIT</project_license>
+            <name>TilePrint</name>
+            <summary>Split posters and drawings into printable tiles</summary>
+            <description>
+              <p>Splits a large PDF or image into A4 sheets with a frame, neighbour arrows and page numbers, keeping vector artwork vector.</p>
+            </description>
+            <launchable type="desktop-id">tileprint.desktop</launchable>
+          </component>
+          XML
+          sed -i 's/^          //' AppDir/usr/share/metainfo/tileprint.appdata.xml
+          sudo apt-get install -y appstream > /dev/null
           wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
           ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir TilePrint-linux-x86_64.AppImage

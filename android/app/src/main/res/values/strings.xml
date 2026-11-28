@@ -87,4 +87,6 @@
     <string name="group_us">US and architectural</string>
     <string name="hint_gestures">Pinch to zoom · drag to pan · double-tap a sheet to preview</string>
     <string name="move_hint">Drag to move the content</string>
+    <string name="overlap_hint_0">Overlap 0: cut each sheet on its frame line and glue the sheets edge to edge. Nothing is repeated.</string>
+    <string name="overlap_hint_n">Each sheet repeats this much of its neighbour so you can overlap and glue. Use 0 to cut on the frame and glue edge to edge.</string>
 </resources>

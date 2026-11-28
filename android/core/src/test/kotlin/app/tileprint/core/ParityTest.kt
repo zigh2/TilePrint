@@ -43,6 +43,7 @@ class ParityTest {
             val lay = buildLayout(v[0], v[1], v[2], v[3], v[4], v[5], v[6])
             assertEquals("rows", r[8].toInt(), lay.rows); assertEquals("cols", r[9].toInt(), lay.cols)
             nearArr(arr(r[10]), lay.xs, "xs"); nearArr(arr(r[11]), lay.ys, "ys")
+            nearArr(arr(r[12]), lay.ws, "ws"); nearArr(arr(r[13]), lay.hs, "hs")
         }
     }
 
@@ -81,6 +82,7 @@ class ParityTest {
             val prof = DoubleArray(total.toInt() + 2) { ((it * 37) % 11) / 10.0 }
             val starts = axisStarts(total, r[2].toDouble(), r[3].toDouble(), if (slack > 0) prof else null, 1.0, slack)
             nearArr(arr(r[5]), starts, "axis ${r.subList(1, 5)}")
+            nearArr(arr(r[6]), axisSizes(starts, r[2].toDouble(), r[3].toDouble(), total), "sizes ${r.subList(1, 5)}")
         }
     }
 
@@ -127,6 +129,32 @@ class ParityTest {
             val x = v[15]; val y = v[16]
             near(v[17], t.a * x + t.c * y + t.e, "X rot=${rot.toInt()} ($x,$y)")
             near(v[18], t.b * x + t.d * y + t.f, "Y rot=${rot.toInt()} ($x,$y)")
+        }
+    }
+
+    @Test fun cutGridTilesThePosterExactly() {
+        val mm = Paper.PT_PER_MM
+        for (overlapMm in listOf(0.0, 10.0)) {
+            val lay = buildLayout(594 * mm, 841 * mm, 297 * mm, 210 * mm, 10 * mm, 9 * mm, overlapMm * mm)
+            val cx = cutPositions(lay.xs, lay.ws, lay.posterW)
+            assertEquals(lay.cols + 1, cx.size); assertEquals(0.0, cx.first(), 0.0); assertEquals(lay.posterW, cx.last(), 1e-9)
+            assertTrue(cx.zipWithNext().all { (a, b) -> b > a })
+            val area = lay.tiles().sumOf { tt -> lay.region(tt).let { (it[2] - it[0]) * (it[3] - it[1]) } }
+            assertEquals(lay.posterW * lay.posterH, area, 1e-6 * area)
+        }
+    }
+
+    @Test fun edgeToEdgeSheetsAbutAndStopAtThePosterEdge() {
+        val mm = Paper.PT_PER_MM
+        for ((pw, ph) in listOf(841 to 1189, 594 to 841, 1000 to 500, 200 to 280)) {
+            val lay = buildLayout(pw * mm, ph * mm, 210 * mm, 297 * mm, 10 * mm, 9 * mm, 0.0)
+            for ((starts, sizes, total) in listOf(Triple(lay.xs, lay.ws, lay.posterW), Triple(lay.ys, lay.hs, lay.posterH))) {
+                for (i in 0 until starts.size - 1) assertEquals(starts[i] + sizes[i], starts[i + 1], 1e-9)
+                assertEquals(total, starts.last() + sizes.last(), 1e-9)
+            }
+            val t = lay.tiles().last()
+            val f = lay.tileFrame(t)
+            assertEquals(t.w, f[2] - f[0], 1e-9); assertEquals(t.h, f[3] - f[1], 1e-9); assertEquals(lay.frame[3], f[3], 1e-9)
         }
     }
 

@@ -88,7 +88,7 @@ object PdfExporter {
                 val page = PDPage(size)
                 dest.addPage(page)
                 PDPageContentStream(dest, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
-                    drawSource(cs, im, job.placement, job.posterW, job.posterH, job.layout.frame, pp.tile.x, pp.tile.y)
+                    drawSource(cs, im, job.placement, job.posterW, job.posterH, job.layout.tileFrame(pp.tile), pp.tile.x, pp.tile.y)
                     Overlay.draw(cs, fonts, job.layout, pp, opt)
                 }
                 if (blankBacks) dest.addPage(PDPage(size))

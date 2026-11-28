@@ -20,11 +20,12 @@ out.append("order|" + ",".join(P.PRESET_ORDER))
 
 cases = [(841,1189,210,297,10,9,10), (594,841,297,420,8,8,12), (1000,500,210,297,10,9,10),
          (3000,1200,216,279,6,7,0), (420,594,210,297,15,10,5), (200,280,210,297,10,9,10),
-         (1189,841,420,297,10,9,15), (5000,2500,297,420,12,9,20), (841,1189,148,210,5,6,8)]
+         (1189,841,420,297,10,9,15), (5000,2500,297,420,12,9,20), (841,1189,148,210,5,6,8),
+         (841,1189,210,297,10,9,0), (594,841,297,420,8,8,0), (1000,500,210,297,10,9,0), (210,297,210,297,10,9,0)]
 for c in cases:
     pw, ph, aw, ah, m, h, o = [v * MM for v in c]
     lay = L.build_layout(pw, ph, aw, ah, m, h, o)
-    out.append(f"layout|{r(pw)}|{r(ph)}|{r(aw)}|{r(ah)}|{r(m)}|{r(h)}|{r(o)}|{lay.rows}|{lay.cols}|{csv(lay.xs)}|{csv(lay.ys)}")
+    out.append(f"layout|{r(pw)}|{r(ph)}|{r(aw)}|{r(ah)}|{r(m)}|{r(h)}|{r(o)}|{lay.rows}|{lay.cols}|{csv(lay.xs)}|{csv(lay.ys)}|{csv(lay.ws)}|{csv(lay.hs)}")
     out.append(f"orient|{r(pw)}|{r(ph)}|{r(aw)}|{r(ah)}|{r(m)}|{r(h)}|{r(o)}|{int(L.best_orientation(pw, ph, aw, ah, m, h, o))}")
     for numbering in ("seq", "rc"):
         for skip in (set(), {(0, 1), (1, 0)}, {(lay.rows - 1, lay.cols - 1)} if lay.rows * lay.cols > 1 else set()):
@@ -38,10 +39,11 @@ for (sw, sh, pw, ph, mode, ox, oy) in [(595.3, 841.9, 2383.9, 3370.4, "fit", 0, 
     p = L.place_content(sw, sh, pw, ph, mode, (ox, oy))
     out.append(f"place|{r(sw)}|{r(sh)}|{r(pw)}|{r(ph)}|{mode}|{r(ox)}|{r(oy)}|{r(p.sx)}|{r(p.sy)}|{r(p.x)}|{r(p.y)}|{r(p.width)}|{r(p.height)}")
 
-for (total, frame, ov, slack) in [(2383.9, 538.6, 28.3, 0), (2383.9, 538.6, 28.3, 42.5), (3370.4, 759.7, 28.3, 42.5), (1500, 500, 0, 30), (900, 500, 20, 60)]:
+for (total, frame, ov, slack) in [(2383.9, 538.6, 28.3, 0), (2383.9, 538.6, 28.3, 42.5), (3370.4, 759.7, 28.3, 42.5), (1500, 500, 0, 30), (900, 500, 20, 60), (2383.9, 538.6, 0, 42.5), (3370.4, 759.7, 0, 42.5), (2383.9, 538.6, 0, 0)]:
     prof = [((i * 37) % 11) / 10.0 for i in range(int(total) + 2)]
     starts = L.axis_starts(total, frame, ov, prof if slack else None, 1.0, slack)
-    out.append(f"axis|{r(total)}|{r(frame)}|{r(ov)}|{r(slack)}|{csv(starts)}")
+    sizes = L.axis_sizes(starts, frame, ov, total)
+    out.append(f"axis|{r(total)}|{r(frame)}|{r(ov)}|{r(slack)}|{csv(starts)}|{csv(sizes)}")
 
 random.seed(7)
 for k in range(8):

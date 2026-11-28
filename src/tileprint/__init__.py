@@ -1,2 +1,2 @@
 """TilePrint — split posters, drawings and tables into printable A4 tiles, keeping vectors vector."""
-__version__ = "0.3.2"
+__version__ = "0.4.0"

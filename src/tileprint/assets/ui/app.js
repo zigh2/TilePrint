@@ -17,6 +17,8 @@ en: {
   keepRatio: 'Keep source proportions', scaling: 'Scaling', resetPos: 'Reset position',
   secPaper: 'Printer paper', paper: 'Paper', margin: 'Margin', header: 'Arrow band', overlap: 'Overlap',
   numbering: 'Page numbering', secOpts: 'Sheet details',
+  overlapHint0: 'Overlap 0: cut each sheet on its frame line and glue the sheets edge to edge. Nothing is repeated.',
+  overlapHintN: 'Each sheet repeats this much of its neighbour, so you can overlap and glue. Use 0 to cut on the frame and glue edge to edge.',
   smartCut: 'Smart cut', smartCutD: 'Moves sheet edges onto empty space so content is not sliced',
   skipBlank: 'Skip blank sheets', skipBlankD: 'Saves paper; the arrows skip them too',
   cropMarks: 'Crop marks', cropMarksD: 'Corner ticks outside the frame',
@@ -31,6 +33,8 @@ en: {
   f2t: 'Neighbour arrows', f2d: 'Page numbers point to the adjacent sheets.', f3t: 'Smart cuts', f3d: 'Edges avoid slicing your content.',
   hint: 'Drag content to move · scroll to zoom · double-click a sheet to preview',
   zoomOut: 'Zoom out', zoomIn: 'Zoom in', fit: 'Fit to window',
+  gridIsCuts: 'Grid: one cut line per boundary (click for sheet frames)',
+  gridIsSheets: 'Grid: every sheet frame, overlaps visible (click for cut lines)',
   o_unit_mm: 'mm', o_unit_cm: 'cm', o_unit_in: 'in',
   o_poster_orient_auto: 'Auto', o_poster_orient_portrait: 'Portrait', o_poster_orient_landscape: 'Landscape',
   o_paper_orient_auto: 'Auto', o_paper_orient_portrait: 'Portrait', o_paper_orient_landscape: 'Landscape',
@@ -60,6 +64,8 @@ ar: {
   keepRatio: 'إبقاء نسبة المصدر', scaling: 'التحجيم', resetPos: 'إعادة الموضع',
   secPaper: 'ورق الطباعة', paper: 'الورق', margin: 'الهامش', header: 'شريط الأسهم', overlap: 'التداخل',
   numbering: 'ترقيم الصفحات', secOpts: 'تفاصيل الأوراق',
+  overlapHint0: 'التداخل 0: قصّ كل ورقة على خط إطارها وألصق الأوراق جنباً إلى جنب. لا يتكرر أي جزء من الصورة.',
+  overlapHintN: 'كل ورقة تكرر هذا المقدار من جارتها لتتداخل وتُلصق. استخدم 0 للقص على الإطار واللصق جنباً إلى جنب.',
   smartCut: 'قص ذكي', smartCutD: 'ينقل حواف الأوراق إلى مساحات فارغة حتى لا يُقطع المحتوى',
   skipBlank: 'تخطي الأوراق الفارغة', skipBlankD: 'يوفر الورق وتتجاوزها الأسهم أيضاً',
   cropMarks: 'علامات القص', cropMarksD: 'علامات في زوايا الإطار من الخارج',
@@ -74,6 +80,8 @@ ar: {
   f2t: 'أسهم الأوراق المجاورة', f2d: 'أرقام الصفحات المجاورة بالأسهم.', f3t: 'قص ذكي', f3d: 'الحواف لا تقطع المحتوى.',
   hint: 'اسحب المحتوى لتحريكه · العجلة للتكبير · انقر مرتين على ورقة لمعاينتها',
   zoomOut: 'تصغير', zoomIn: 'تكبير', fit: 'ملاءمة النافذة',
+  gridIsCuts: 'الشبكة: خط قص واحد لكل حد (انقر لعرض إطار كل ورقة)',
+  gridIsSheets: 'الشبكة: إطار كل ورقة مع التداخل (انقر لعرض خطوط القص)',
   o_unit_mm: 'مم', o_unit_cm: 'سم', o_unit_in: 'إنش',
   o_poster_orient_auto: 'تلقائي', o_poster_orient_portrait: 'طولي', o_poster_orient_landscape: 'عرضي',
   o_paper_orient_auto: 'تلقائي', o_paper_orient_portrait: 'طولي', o_paper_orient_landscape: 'عرضي',
@@ -127,6 +135,7 @@ let base = null, baseKey = '', region = null, rev = 0, lastPoster = '';
 let view = { s: 1, tx: 0, ty: 0 }, fitS = 1;
 let selected = null, hover = null, drag = null, spaceDown = false, panning = null;
 let accent = '#2b62f0', dark = false;
+let gridMode = (store.get('tp-grid') === 'sheets') ? 'sheets' : 'cuts';
 
 const ltr = s => `<bdi dir="ltr">${s}</bdi>`;
 const unit = () => (S && S.settings.unit) || 'mm';
@@ -240,6 +249,7 @@ function wireControls() {
   $('#mTiled').onclick = () => doExport('tiled'); $('#mFull').onclick = () => doExport('full');
   $('#mSaveProject').onclick = saveProject; $('#mOpenProject').onclick = openProject;
   // zoom
+  $('#zGrid').onclick = () => { gridMode = gridMode === 'cuts' ? 'sheets' : 'cuts'; store.set('tp-grid', gridMode); syncGridBtn(); draw(); };
   $('#zIn').onclick = () => zoomAt(cx(), cy(), 1.3); $('#zOut').onclick = () => zoomAt(cx(), cy(), 1 / 1.3); $('#zFit').onclick = () => { fit(); };
   // modal
   $('#smClose').onclick = closeSheet; $('#sheetModal').onclick = e => { if (e.target.id === 'sheetModal') closeSheet(); };
@@ -281,8 +291,15 @@ async function loadBase(key) {
   img.src = r.url;
 }
 
+function syncGridBtn() {
+  const b = $('#zGrid'); if (!b) return;
+  b.title = t(gridMode === 'cuts' ? 'gridIsCuts' : 'gridIsSheets'); b.setAttribute('aria-pressed', String(gridMode === 'sheets'));
+  $('#gridUse').setAttribute('href', gridMode === 'cuts' ? '#i-grid' : '#i-layers');
+}
+
 function syncUI() {
   if (!S) return;
+  syncGridBtn();
   const s = S.settings, j = S.job, src = S.source, u = s.unit;
   $('#ver').textContent = 'v' + S.version;
   document.body.classList.toggle('has', S.has_source);
@@ -306,6 +323,9 @@ function syncUI() {
   // controls
   $$('.seg[data-seg]').forEach(seg => $$('button', seg).forEach(b => b.setAttribute('aria-pressed', String(s[seg.dataset.seg] === b.dataset.v))));
   $$('input[data-sw]').forEach(i => { i.checked = !!s[i.dataset.sw]; });
+  const noOverlap = s.overlap < 0.01;                     // edge to edge: there is nothing to mark
+  const tk = $('input[data-sw="overlap_guides"]'); tk.disabled = noOverlap; tk.closest('.switch').style.opacity = noOverlap ? .5 : 1;
+  $('#overlapHint').textContent = t(noOverlap ? 'overlapHint0' : 'overlapHintN');
   if ($('#preset').dataset.unit !== u) { $('#preset').dataset.unit = u; buildSelects(); }
   $('#preset').value = s.poster_preset; $('#paper').value = s.paper;
   const custom = s.poster_preset === 'Custom';
@@ -376,14 +396,23 @@ function zoomAt(px, py, f) {
   draw(); scheduleRegion();
 }
 const toWorld = (x, y) => [(x - view.tx) / view.s, (y - view.ty) / view.s];
+// middle of every overlap band: the single "cut line" between two neighbouring sheets
+const cutsOf = (starts, sizes, total) => [0, ...starts.slice(1).map((s, i) => (s + starts[i] + sizes[i]) / 2), total];
+// the area a sheet "owns" in the current grid mode: its own frame, or its share of the cut grid
+const regionOf = j => {
+  if (gridMode !== 'cuts') return t => [t.x, t.y, t.x + t.w, t.y + t.h];
+  const cx = cutsOf(j.xs, j.ws, j.poster[0]), cy = cutsOf(j.ys, j.hs, j.poster[1]);
+  return t => [cx[t.col], cy[t.row], cx[t.col + 1], cy[t.row + 1]];
+};
 function tileAt(wx, wy) {
   if (!S || !S.job) return null;
   const [PW, PH] = S.job.poster; if (wx < 0 || wy < 0 || wx > PW || wy > PH) return null;
-  // overlapping tiles: prefer the one whose body contains the point farthest from its edges
+  const reg = regionOf(S.job);
   let best = null, bd = -1;
   for (const t of S.job.tiles) {
-    if (wx >= t.x && wx <= t.x + t.w && wy >= t.y && wy <= t.y + t.h) {
-      const d = Math.min(wx - t.x, t.x + t.w - wx, wy - t.y, t.y + t.h - wy);
+    const r = reg(t);
+    if (wx >= r[0] && wx <= r[2] && wy >= r[1] && wy <= r[3]) {
+      const d = Math.min(wx - r[0], r[2] - wx, wy - r[1], r[3] - wy);
       if (d > bd) { bd = d; best = t; }
     }
   }
@@ -410,37 +439,46 @@ function draw() {
   if (base) ctx.drawImage(base.img, pl.x + ox, pl.y + oy, pl.w, pl.h);
   if (region && region.rev === rev && !drag) ctx.drawImage(region.img, region.x, region.y, region.w, region.h);
   ctx.restore();
-  // overlap strips
-  const [fw, fh] = j.frame; ctx.fillStyle = 'rgba(255,150,0,.20)';
-  for (let i = 1; i < j.xs.length; i++) { const x = j.xs[i]; ctx.fillRect(x, 0, Math.min(j.xs[i - 1] + fw, PW) - x, PH); }
-  for (let i = 1; i < j.ys.length; i++) { const y = j.ys[i]; ctx.fillRect(0, y, PW, Math.min(j.ys[i - 1] + fh, PH) - y); }
-  // skipped tiles: dim + hatch
+  // grid: "cuts" = ONE line per boundary (middle of each overlap band); "sheets" = every sheet's own frame
+  const [fw, fh] = j.frame, cuts = gridMode === 'cuts', reg = regionOf(j);
+  ctx.fillStyle = cuts ? 'rgba(255,150,0,.13)' : 'rgba(255,150,0,.20)';
+  for (let i = 1; i < j.xs.length; i++) { const x = j.xs[i], w = Math.min(j.xs[i - 1] + j.ws[i - 1], PW) - x; if (w > 0.01) ctx.fillRect(x, 0, w, PH); }
+  for (let i = 1; i < j.ys.length; i++) { const y = j.ys[i], h = Math.min(j.ys[i - 1] + j.hs[i - 1], PH) - y; if (h > 0.01) ctx.fillRect(0, y, PW, h); }
+  const clipTo = ([x0, y0, x1, y1]) => { ctx.beginPath(); ctx.rect(x0, y0, Math.min(x1, PW) - x0, Math.min(y1, PH) - y0); ctx.clip(); };
+  // skipped sheets: dim + hatch
   for (const t of j.tiles) if (t.skipped) {
-    ctx.save(); ctx.beginPath(); ctx.rect(t.x, t.y, Math.min(t.w, PW - t.x), Math.min(t.h, PH - t.y)); ctx.clip();
-    ctx.fillStyle = dark ? 'rgba(0,0,0,.45)' : 'rgba(30,38,56,.16)'; ctx.fillRect(t.x, t.y, t.w, t.h);
+    const r = reg(t), w = r[2] - r[0], h = r[3] - r[1];
+    ctx.save(); clipTo(r);
+    ctx.fillStyle = dark ? 'rgba(0,0,0,.45)' : 'rgba(30,38,56,.16)'; ctx.fillRect(r[0], r[1], w, h);
     ctx.strokeStyle = dark ? 'rgba(255,255,255,.10)' : 'rgba(30,38,56,.16)'; ctx.lineWidth = 1 / sc; const g = 16 / sc;
-    ctx.beginPath(); for (let k = -t.h; k < t.w; k += g) { ctx.moveTo(t.x + k, t.y + t.h); ctx.lineTo(t.x + k + t.h, t.y); } ctx.stroke(); ctx.restore();
+    ctx.beginPath(); for (let k = -h; k < w; k += g) { ctx.moveTo(r[0] + k, r[3]); ctx.lineTo(r[0] + k + h, r[1]); } ctx.stroke(); ctx.restore();
   }
   // selection / hover
   const hl = (k, a) => { if (!k) return; const t = j.tiles.find(x => x.row === k[0] && x.col === k[1]); if (!t) return;
-    ctx.save(); ctx.beginPath(); ctx.rect(t.x, t.y, Math.min(t.w, PW - t.x), Math.min(t.h, PH - t.y)); ctx.clip();
-    ctx.globalAlpha = a; ctx.fillStyle = accent; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.restore(); };
+    const r = reg(t); ctx.save(); clipTo(r); ctx.globalAlpha = a; ctx.fillStyle = accent; ctx.fillRect(r[0], r[1], r[2] - r[0], r[3] - r[1]); ctx.restore(); };
   hl(hover, .08); hl(selected, .16);
-  // tile frames + labels
-  ctx.save(); ctx.beginPath(); ctx.rect(-2 / sc, -2 / sc, PW + 4 / sc, PH + 4 / sc); ctx.clip();   // frames never leave the poster
+  // lines
+  ctx.save(); ctx.beginPath(); ctx.rect(-2 / sc, -2 / sc, PW + 4 / sc, PH + 4 / sc); ctx.clip();   // never leave the poster
   ctx.lineWidth = 1.5 / sc; ctx.strokeStyle = accent;
-  for (const t of j.tiles) {
-    ctx.setLineDash(t.skipped ? [8 / sc, 6 / sc] : []); ctx.globalAlpha = t.skipped ? .55 : .95;
-    ctx.strokeRect(t.x, t.y, t.w, t.h);
+  if (cuts) {
+    const cx = cutsOf(j.xs, j.ws, PW), cy = cutsOf(j.ys, j.hs, PH);
+    ctx.globalAlpha = .95; ctx.beginPath();
+    for (let i = 1; i < cx.length - 1; i++) { ctx.moveTo(cx[i], 0); ctx.lineTo(cx[i], PH); }
+    for (let i = 1; i < cy.length - 1; i++) { ctx.moveTo(0, cy[i]); ctx.lineTo(PW, cy[i]); }
+    ctx.stroke();
+  } else {
+    for (const t of j.tiles) { ctx.setLineDash(t.skipped ? [8 / sc, 6 / sc] : []); ctx.globalAlpha = t.skipped ? .55 : .95; ctx.strokeRect(t.x, t.y, t.w, t.h); }
   }
   ctx.restore(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  // sheet numbers
   for (const t of j.tiles) {
-    if (Math.min(t.w, t.h) * sc < 64) continue;
-    const fs = Math.min(24, Math.max(11, Math.min(t.w, t.h) * 0.075 * sc)) / sc;
+    const r = reg(t), rw = Math.min(r[2], PW) - r[0], rh = Math.min(r[3], PH) - r[1];
+    if (Math.min(rw, rh) * sc < 64) continue;
+    const fs = Math.min(24, Math.max(11, Math.min(rw, rh) * 0.075 * sc)) / sc;
     const label = t.skipped ? '–' : t.label;
     ctx.font = `700 ${fs}px "TP Sans","TP Arabic",system-ui,sans-serif`;
     const tw = ctx.measureText(label).width, padx = fs * .55, ph = fs * 1.55, pw = Math.max(ph, tw + padx * 2);
-    const px = t.x + fs * .5, py = t.y + fs * .5;
+    const px = r[0] + fs * .5, py = r[1] + fs * .5;
     ctx.fillStyle = t.skipped ? (dark ? '#4b5568' : '#8a93a6') : accent; rr(ctx, px, py, pw, ph, ph / 2); ctx.fill();
     ctx.fillStyle = dark && !t.skipped ? '#0b1226' : '#fff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     ctx.fillText(label, px + pw / 2, py + ph / 2 + fs * .04);

@@ -1,8 +1,7 @@
 package app.tileprint.engine
 
 import android.content.Context
-import android.icu.text.ArabicShaping
-import android.icu.text.Bidi
+import app.tileprint.core.ArabicText
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
@@ -22,22 +21,12 @@ class PdfFonts(val lat: PDType0Font, val latBold: PDType0Font, val ar: PDType0Fo
 object PdfText {
     private class Run(val text: String, val font: PDType0Font)
 
-    private fun isArabic(ch: Char): Boolean {
-        val o = ch.code
-        return o in 0x0600..0x06FF || o in 0x0750..0x077F || o in 0x08A0..0x08FF ||
-            o in 0xFB50..0xFDFF || o in 0xFE70..0xFEFF
-    }
+    private fun isArabic(ch: Char) = ArabicText.isArabic(ch)
 
-    fun hasArabic(s: String) = s.any { isArabic(it) }
+    fun hasArabic(s: String) = ArabicText.hasArabic(s)
 
-    /** Shape letters into presentation forms and reorder to visual (left-to-right) order. */
-    fun visual(text: String): String {
-        if (!hasArabic(text)) return text
-        return runCatching {
-            val shaped = ArabicShaping(ArabicShaping.LETTERS_SHAPE).shape(text)
-            Bidi(shaped, Bidi.DIRECTION_DEFAULT_LEFT_TO_RIGHT).writeReordered(Bidi.DO_MIRRORING)
-        }.getOrDefault(text)
-    }
+    /** Shape letters into presentation forms and reorder to visual (left-to-right) order (pure Kotlin, no ICU). */
+    fun visual(text: String): String = ArabicText.visual(text)
 
     private fun runs(shown: String, bold: Boolean, f: PdfFonts): List<Run> {
         val ar = if (bold) f.arBold else f.ar

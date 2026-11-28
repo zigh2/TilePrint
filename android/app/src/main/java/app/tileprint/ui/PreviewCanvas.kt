@@ -27,6 +27,8 @@ import androidx.compose.ui.input.pointer.positionChanged
 import app.tileprint.UiState
 import app.tileprint.core.Job
 import app.tileprint.core.Tile
+import app.tileprint.core.cutPositions
+import app.tileprint.core.region
 import app.tileprint.engine.Region
 import kotlin.math.abs
 import kotlin.math.max
@@ -41,17 +43,15 @@ fun fitView(w: Float, h: Float, job: Job): ViewTransform {
     return ViewTransform(s, (w - job.posterW.toFloat() * s) / 2, (h - job.posterH.toFloat() * s) / 2)
 }
 
+/** The sheet whose share of the cut grid contains the poster point (wx, wy). */
 fun tileAt(job: Job, wx: Double, wy: Double): Tile? {
     if (wx < 0 || wy < 0 || wx > job.posterW || wy > job.posterH) return null
-    var best: Tile? = null
-    var bd = -1.0
-    for (t in job.layout.tiles()) {
-        if (wx >= t.x && wx <= t.x + t.w && wy >= t.y && wy <= t.y + t.h) {
-            val d = minOf(wx - t.x, t.x + t.w - wx, wy - t.y, t.y + t.h - wy)
-            if (d > bd) { bd = d; best = t }
-        }
+    val cx = cutPositions(job.layout.xs, job.layout.ws, job.posterW)
+    val cy = cutPositions(job.layout.ys, job.layout.hs, job.posterH)
+    return job.layout.tiles().firstOrNull { t ->
+        val r = job.layout.region(t, cx, cy)
+        wx >= r[0] && wx <= r[2] && wy >= r[1] && wy <= r[3]
     }
-    return best
 }
 
 @Composable
@@ -172,35 +172,39 @@ fun PreviewCanvas(
             paints.fill.color = android.graphics.Color.argb(52, 255, 150, 0)
             val xs = j.layout.xs
             val ys = j.layout.ys
-            for (i in 1 until xs.size) nc.drawRect(xs[i].toFloat(), 0f, min((xs[i - 1] + fw).toFloat(), pw), ph, paints.fill)
-            for (i in 1 until ys.size) nc.drawRect(0f, ys[i].toFloat(), pw, min((ys[i - 1] + fh).toFloat(), ph), paints.fill)
+            for (i in 1 until xs.size) { val x2 = min((xs[i - 1] + j.layout.ws[i - 1]).toFloat(), pw); if (x2 - xs[i] > 0.01) nc.drawRect(xs[i].toFloat(), 0f, x2, ph, paints.fill) }
+            for (i in 1 until ys.size) { val y2 = min((ys[i - 1] + j.layout.hs[i - 1]).toFloat(), ph); if (y2 - ys[i] > 0.01) nc.drawRect(0f, ys[i].toFloat(), pw, y2, paints.fill) }
 
-            // skipped tiles dimmed, selected tile tinted
+            val cutsX = cutPositions(xs, j.layout.ws, j.posterW)
+            val cutsY = cutPositions(ys, j.layout.hs, j.posterH)
+            fun rect(t: Tile): RectF {
+                val r = j.layout.region(t, cutsX, cutsY)
+                return RectF(r[0].toFloat(), r[1].toFloat(), r[2].toFloat(), r[3].toFloat())
+            }
+
+            // skipped sheets dimmed, selected sheet tinted
             for (t in j.layout.tiles()) {
                 if (t.key in j.skip) {
                     paints.fill.color = android.graphics.Color.argb(if (dark) 110 else 45, 20, 28, 46)
-                    nc.drawRect(t.x.toFloat(), t.y.toFloat(), min((t.x + t.w).toFloat(), pw), min((t.y + t.h).toFloat(), ph), paints.fill)
+                    nc.drawRect(rect(t), paints.fill)
                 }
                 if (t.key == state.selected) {
                     paints.fill.color = (accent and 0x00FFFFFF) or (0x33 shl 24)
-                    nc.drawRect(t.x.toFloat(), t.y.toFloat(), min((t.x + t.w).toFloat(), pw), min((t.y + t.h).toFloat(), ph), paints.fill)
+                    nc.drawRect(rect(t), paints.fill)
                 }
             }
 
-            // tile frames (never leave the poster)
-            nc.save()
-            nc.clipRect(-2 * px, -2 * px, pw + 2 * px, ph + 2 * px)
+            // ONE cut line per boundary (the middle of each overlap band)
             paints.stroke.color = accent
             paints.stroke.strokeWidth = 1.5f * px
-            for (t in j.layout.tiles()) {
-                nc.drawRect(t.x.toFloat(), t.y.toFloat(), (t.x + t.w).toFloat(), (t.y + t.h).toFloat(), paints.stroke)
-            }
-            nc.restore()
+            for (i in 1 until cutsX.size - 1) nc.drawLine(cutsX[i].toFloat(), 0f, cutsX[i].toFloat(), ph, paints.stroke)
+            for (i in 1 until cutsY.size - 1) nc.drawLine(0f, cutsY[i].toFloat(), pw, cutsY[i].toFloat(), paints.stroke)
 
-            // sheet numbers: constant on-screen size
+            // sheet numbers: constant on-screen size, at the top-left of each sheet's share
             val labels = j.layout.plan(j.skip, state.settings.numbering).associate { it.tile.key to it.label }
             for (t in j.layout.tiles()) {
-                val minSide = min(t.w, t.h).toFloat()
+                val r = rect(t)
+                val minSide = min(r.width(), r.height())
                 if (minSide * sc < 64f) continue
                 val fs = min(24f, max(11f, minSide * 0.075f * sc)) / sc
                 val skipped = t.key in j.skip
@@ -209,8 +213,8 @@ fun PreviewCanvas(
                 val tw = paints.text.measureText(label)
                 val ph2 = fs * 1.55f
                 val pw2 = max(ph2, tw + fs * 1.1f)
-                val x = t.x.toFloat() + fs * 0.5f
-                val y = t.y.toFloat() + fs * 0.5f
+                val x = r.left + fs * 0.5f
+                val y = r.top + fs * 0.5f
                 paints.fill.color = if (skipped) android.graphics.Color.rgb(138, 147, 166) else accent
                 nc.drawRoundRect(x, y, x + pw2, y + ph2, ph2 / 2, ph2 / 2, paints.fill)
                 paints.text.color = if (skipped) android.graphics.Color.WHITE else onAccent

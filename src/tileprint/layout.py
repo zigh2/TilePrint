@@ -88,8 +88,8 @@ class Tile:
     col: int
     x: float      # left, poster space
     y: float      # top, poster space
-    w: float      # frame width  (same for all tiles)
-    h: float      # frame height
+    w: float      # width of the poster area this sheet prints (<= the printable width)
+    h: float      # height of that area (<= the printable height)
 
     @property
     def key(self) -> tuple[int, int]:
@@ -144,6 +144,25 @@ def axis_starts(total: float, frame: float, overlap: float,
     return starts
 
 
+def axis_sizes(starts: Sequence[float], frame: float, overlap: float, total: float) -> list[float]:
+    """Length each sheet prints along one axis.
+
+    * overlap > 0: every sheet prints the full frame (sheets repeat `overlap` of the image);
+    * overlap == 0 ("butt join"): a sheet prints exactly up to where the next one starts, so the frames
+      are cut lines and the sheets are glued edge to edge with no repeated image.
+    The last sheet always stops at the poster edge, so the glued poster has exactly the poster size.
+    """
+    n = len(starts)
+    out = []
+    for i, s in enumerate(starts):
+        if overlap > EPS and i < n - 1:
+            out.append(frame)
+        else:
+            nxt = starts[i + 1] if i < n - 1 else total
+            out.append(min(frame, nxt - s))
+    return out
+
+
 @dataclass
 class TileLayout:
     poster_w: float
@@ -155,6 +174,8 @@ class TileLayout:
     overlap: float
     xs: list = field(default_factory=list)
     ys: list = field(default_factory=list)
+    ws: list = field(default_factory=list)      # printed width of each column
+    hs: list = field(default_factory=list)      # printed height of each row
 
     # ---- frame (page space, y up) -------------------------------------- #
     @property
@@ -180,8 +201,13 @@ class TileLayout:
         return len(self.ys)
 
     def tiles(self) -> list[Tile]:
-        return [Tile(r, c, x, y, self.frame_w, self.frame_h)
+        return [Tile(r, c, x, y, self.ws[c], self.hs[r])
                 for r, y in enumerate(self.ys) for c, x in enumerate(self.xs)]
+
+    def tile_frame(self, t: Tile) -> tuple[float, float, float, float]:
+        """(x0, y0, x1, y1) of this sheet's frame on the page: anchored at the top-left of the printable area."""
+        x0, _y0, _x1, y1 = self.frame
+        return (x0, y1 - t.h, x0 + t.w, y1)
 
     def plan(self, skip: Optional[set] = None, numbering: str = "seq") -> list[PlannedPage]:
         """Printed pages in reading order with their labels and neighbour labels.
@@ -216,6 +242,8 @@ def build_layout(poster_w: float, poster_h: float, paper_w: float, paper_h: floa
         raise ValueError("margins/header/overlap leave no printable area")
     lay.xs = axis_starts(poster_w, lay.frame_w, overlap, ink_x, ink_res, smart_slack)
     lay.ys = axis_starts(poster_h, lay.frame_h, overlap, ink_y, ink_res, smart_slack)
+    lay.ws = axis_sizes(lay.xs, lay.frame_w, overlap, poster_w)
+    lay.hs = axis_sizes(lay.ys, lay.frame_h, overlap, poster_h)
     return lay
 
 

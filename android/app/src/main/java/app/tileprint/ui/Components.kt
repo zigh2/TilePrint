@@ -79,13 +79,13 @@ fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> 
 }
 
 @Composable
-fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+fun SwitchRow(title: String, subtitle: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp)
             Text(subtitle, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 15.sp)
         }
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }
 
@@ -93,7 +93,7 @@ fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Bool
 @Composable
 fun NumberField(
     label: String, valuePt: Double, unitLabel: String, toUnit: (Double) -> Double, fromUnit: (Double) -> Double,
-    onCommit: (Double) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+    onCommit: (Double) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, allowZero: Boolean = false,
 ) {
     val shown = format(toUnit(valuePt))
     var text by remember { mutableStateOf(shown) }
@@ -102,7 +102,7 @@ fun NumberField(
 
     fun commit() {
         val v = parseDecimal(text)
-        if (v != null && v > 0) onCommit(fromUnit(v)) else text = shown
+        if (v != null && (v > 0 || (allowZero && v == 0.0))) onCommit(fromUnit(v)) else text = shown
     }
     OutlinedTextField(
         value = text,

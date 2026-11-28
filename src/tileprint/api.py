@@ -154,7 +154,7 @@ class Api:
                 "poster": [job.poster_w, job.poster_h], "paper": [job.paper_w, job.paper_h],
                 "placement": {"x": pl.x, "y": pl.y, "w": pl.width, "h": pl.height, "sx": pl.sx, "sy": pl.sy},
                 "rows": lay.rows, "cols": lay.cols, "printed": len(plan), "total": lay.rows * lay.cols,
-                "frame": [lay.frame_w, lay.frame_h], "xs": lay.xs, "ys": lay.ys,
+                "frame": [lay.frame_w, lay.frame_h], "xs": lay.xs, "ys": lay.ys, "ws": lay.ws, "hs": lay.hs,
                 "overlap": lay.overlap, "tiles": tiles, "dpi": job.dpi, "scale": job.scale,
                 "uniform_scale": abs(pl.sx - pl.sy) < 1e-6,
                 "too_big_for_single_page": max(job.poster_w, job.poster_h) > X.MAX_PDF_PAGE_PT,
